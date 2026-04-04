@@ -60,12 +60,15 @@ CREATE TABLE candidates (
     candidate_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     election_id UUID NOT NULL REFERENCES elections(election_id) ON DELETE CASCADE,
     district_id UUID REFERENCES districts(district_id) ON DELETE SET NULL,
-    name VARCHAR(255) NOT NULL,
-    party VARCHAR(255),
+    full_name VARCHAR(255) NOT NULL,
+    party_name VARCHAR(255),
     party_symbol VARCHAR(255),
-    photo_url TEXT,
-    bio TEXT,
-    manifesto TEXT,
+    candidate_photo TEXT,
+    position_title VARCHAR(100) DEFAULT 'Candidate',
+    biography TEXT,
+    manifesto_summary TEXT,
+    votes_received INTEGER DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'withdrawn', 'disqualified')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -78,53 +81,28 @@ CREATE INDEX idx_candidates_district ON candidates(district_id);
 -- ===================================
 CREATE TABLE voters (
     voter_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    national_id VARCHAR(255) UNIQUE NOT NULL,
-    bio_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hash of biometric data
+    roll_number VARCHAR(20) UNIQUE,
+    aadhar_number VARCHAR(12) UNIQUE NOT NULL,
+    biometric_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hash of biometric data
     district_id UUID NOT NULL REFERENCES districts(district_id) ON DELETE RESTRICT,
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
-    date_of_birth DATE NOT NULL,
-    gender VARCHAR(20) CHECK (gender IN ('MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY')),
-    address TEXT,
-    phone VARCHAR(20),
-    email VARCHAR(255),
+    full_name VARCHAR(255) NOT NULL,
     registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    registration_status VARCHAR(50) DEFAULT 'PENDING' CHECK (registration_status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'deceased')),
+    has_voted BOOLEAN DEFAULT false,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_voters_district ON voters(district_id);
-CREATE INDEX idx_voters_bio_hash ON voters(bio_hash);
-CREATE INDEX idx_voters_registration_status ON voters(registration_status);
-CREATE INDEX idx_voters_national_id ON voters(national_id);
-
--- ===================================
--- TABLE: voting_records
--- ===================================
-CREATE TABLE voting_records (
-    record_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    voter_id UUID NOT NULL REFERENCES voters(voter_id) ON DELETE RESTRICT,
-    election_id UUID NOT NULL REFERENCES elections(election_id) ON DELETE CASCADE,
-    has_voted BOOLEAN DEFAULT false,
-    voted_at TIMESTAMP,
-    terminal_id VARCHAR(255),
-    blockchain_tx_hash VARCHAR(255), -- Hash of blockchain transaction
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(voter_id, election_id)
-);
-
-CREATE INDEX idx_voting_records_voter ON voting_records(voter_id);
-CREATE INDEX idx_voting_records_election ON voting_records(election_id);
-CREATE INDEX idx_voting_records_terminal ON voting_records(terminal_id);
-CREATE INDEX idx_voting_records_blockchain_tx ON voting_records(blockchain_tx_hash);
+CREATE INDEX idx_voters_biometric_hash ON voters(biometric_hash);
+CREATE INDEX idx_voters_aadhar_number ON voters(aadhar_number);
 
 -- ===================================
 -- TABLE: iot_terminals
 -- ===================================
 CREATE TABLE iot_terminals (
-    terminal_id VARCHAR(255) PRIMARY KEY,
+    terminal_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     mac_address VARCHAR(17) UNIQUE NOT NULL,
     district_id UUID REFERENCES districts(district_id) ON DELETE SET NULL,
     location VARCHAR(255),
@@ -139,6 +117,28 @@ CREATE TABLE iot_terminals (
 CREATE INDEX idx_terminals_district ON iot_terminals(district_id);
 CREATE INDEX idx_terminals_status ON iot_terminals(status);
 CREATE INDEX idx_terminals_mac ON iot_terminals(mac_address);
+
+-- ===================================
+-- TABLE: voting_records
+-- ===================================
+CREATE TABLE voting_records (
+    record_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    voter_id UUID NOT NULL REFERENCES voters(voter_id) ON DELETE RESTRICT,
+    election_id UUID NOT NULL REFERENCES elections(election_id) ON DELETE CASCADE,
+    terminal_id UUID NOT NULL REFERENCES iot_terminals(terminal_id),
+    vote_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    blockchain_tx_id VARCHAR(255),
+    verification_hash VARCHAR(64),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(voter_id, election_id)
+);
+
+CREATE INDEX idx_voting_records_voter ON voting_records(voter_id);
+CREATE INDEX idx_voting_records_election ON voting_records(election_id);
+CREATE INDEX idx_voting_records_terminal ON voting_records(terminal_id);
+CREATE INDEX idx_voting_records_vote_timestamp ON voting_records(vote_timestamp);
+CREATE INDEX idx_voting_records_blockchain_tx ON voting_records(blockchain_tx_id);
 
 -- ===================================
 -- TABLE: admin_users
@@ -193,7 +193,7 @@ CREATE TABLE fraud_alerts (
     description TEXT NOT NULL,
     election_id UUID REFERENCES elections(election_id) ON DELETE CASCADE,
     district_id UUID REFERENCES districts(district_id) ON DELETE SET NULL,
-    terminal_id VARCHAR(255) REFERENCES iot_terminals(terminal_id) ON DELETE SET NULL,
+    terminal_id UUID REFERENCES iot_terminals(terminal_id) ON DELETE SET NULL,
     detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'INVESTIGATING', 'RESOLVED', 'FALSE_POSITIVE')),
     resolved_at TIMESTAMP,
@@ -264,5 +264,5 @@ COMMENT ON TABLE voters IS 'Stores voter registration information with hashed bi
 COMMENT ON TABLE voting_records IS 'Tracks which voters have voted in which elections';
 COMMENT ON TABLE iot_terminals IS 'Registry of all IoT voting terminals';
 COMMENT ON TABLE fraud_alerts IS 'ML-detected anomalies and fraud attempts';
-COMMENT ON COLUMN voters.bio_hash IS 'SHA-256 hash of fingerprint template, never stores raw biometric data';
-COMMENT ON COLUMN voting_records.blockchain_tx_hash IS 'Reference to blockchain transaction for auditability';
+COMMENT ON COLUMN voters.biometric_hash IS 'SHA-256 hash of fingerprint template, never stores raw biometric data';
+COMMENT ON COLUMN voting_records.blockchain_tx_id IS 'Reference to blockchain transaction for auditability';

@@ -13,6 +13,18 @@ const { initKafkaProducer, disconnectKafkaProducer } = require('./services/kafka
 // Load environment variables
 dotenv.config();
 
+// Global Error Handlers - Catching everything that escapes try-catch
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    // In production, you might want to restart gracefully here
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('💥 Uncaught Exception:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+});
+
 // Import routes
 const authRoutes = require('./routes/auth.routes.js');
 const voteRoutes = require('./routes/vote.routes.js');
@@ -176,8 +188,8 @@ const startServer = async () => {
         }
 
         // Start HTTP server
-        const server = app.listen(PORT, () => {
-            console.log(`\n🚀 Server running on port ${PORT}`);
+        const server = app.listen(PORT, '0.0.0.0', () => {
+            console.log(`\n🚀 Server running on all interfaces at port ${PORT}`);
             console.log(`   Health check: http://localhost:${PORT}/health`);
             console.log(`   API endpoint: http://localhost:${PORT}/api/v1`);
         });
@@ -185,7 +197,12 @@ const startServer = async () => {
         // Initialize WebSocket Server
         initWebSocketServer(server);
     } catch (error) {
-        console.error('❌ Failed to start server:', error.message);
+        if (error.code === 'EADDRINUSE') {
+            console.error(`❌ Port ${PORT} is already in use. Please kill the process using it.`);
+        } else {
+            console.error('❌ Failed to start server:', error.message);
+            console.error(error.stack);
+        }
         process.exit(1);
     }
 };

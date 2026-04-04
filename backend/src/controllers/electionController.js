@@ -3,9 +3,9 @@
  * Handles CRUD operations for elections
  */
 
-const Election = require('../models/Election');
-const Candidate = require('../models/Candidate');
-const District = require('../models/District');
+const Election = require('../models/election.model.js');
+const Candidate = require('../models/candidate.model.js');
+const District = require('../models/index.js').District || require('../models/election.model.js'); // Use index or default
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 
@@ -55,11 +55,11 @@ exports.createElection = async (req, res) => {
         // Create election
         const election = await Election.create({
             name,
-            type,
+            election_type: type,
             start_date: start,
             end_date: end,
             description,
-            status: 'SCHEDULED',
+            status: 'PENDING',
             created_by: req.user.id,
             config: config || {}
         });
@@ -132,10 +132,6 @@ exports.getAllElections = async (req, res) => {
             where,
             limit: parseInt(limit),
             offset: parseInt(offset),
-            include: [
-                { model: District },
-                { model: Candidate }
-            ],
             order: [['start_date', 'DESC']]
         });
 

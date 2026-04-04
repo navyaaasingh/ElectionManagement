@@ -3,8 +3,8 @@
  * Handles CRUD operations for election candidates
  */
 
-const Candidate = require('../models/Candidate');
-const Election = require('../models/Election');
+const Candidate = require('../models/candidate.model.js');
+const Election = require('../models/election.model.js');
 const { validationResult } = require('express-validator');
 const logger = require('../utils/logger');
 
@@ -24,6 +24,7 @@ exports.addCandidate = async (req, res) => {
 
         const {
             electionId,
+            district_id,
             name,
             party,
             symbol,
@@ -66,11 +67,12 @@ exports.addCandidate = async (req, res) => {
         // Create candidate
         const candidate = await Candidate.create({
             election_id: electionId,
-            name,
-            party,
-            symbol,
-            manifesto,
-            photo_url: photoUrl
+            district_id: district_id,
+            full_name: name,
+            party_name: party,
+            party_symbol: symbol,
+            manifesto_summary: manifesto,
+            candidate_photo: photoUrl
         });
 
         // Log action

@@ -7,13 +7,19 @@ const Election = sequelize.define('elections', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
     },
-    election_name: {
+    name: {
         type: DataTypes.STRING(255),
         allowNull: false,
     },
+    description: {
+        type: DataTypes.TEXT,
+    },
     election_type: {
-        type: DataTypes.ENUM('general', 'state', 'local', 'by-election'),
+        type: DataTypes.STRING(50),
         allowNull: false,
+        validate: {
+            isIn: [['NATIONAL', 'STATE', 'LOCAL', 'INSTITUTIONAL']]
+        }
     },
     start_date: {
         type: DataTypes.DATE,
@@ -22,26 +28,14 @@ const Election = sequelize.define('elections', {
     end_date: {
         type: DataTypes.DATE,
         allowNull: false,
-        validate: {
-            isAfterStart(value) {
-                if (value <= this.start_date) {
-                    throw new Error('End date must be after start date');
-                }
-            },
-        },
     },
     status: {
-        type: DataTypes.ENUM('upcoming', 'active', 'completed', 'cancelled'),
-        defaultValue: 'upcoming',
-    },
-    total_voters: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-    },
-    total_votes_cast: {
-        type: DataTypes.INTEGER,
-        defaultValue: 0,
-    },
+        type: DataTypes.STRING(50),
+        defaultValue: 'PENDING',
+        validate: {
+            isIn: [['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED']]
+        }
+    }
 }, {
     indexes: [
         { fields: ['start_date', 'end_date'] },

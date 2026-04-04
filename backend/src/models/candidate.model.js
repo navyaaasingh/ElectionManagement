@@ -39,6 +39,20 @@ const Candidate = sequelize.define('candidates', {
         type: DataTypes.STRING(255),
         comment: 'URL or path to candidate photo',
     },
+    position_title: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        defaultValue: 'Candidate',
+        comment: 'e.g., President, General Secretary',
+    },
+    biography: {
+        type: DataTypes.TEXT,
+        comment: 'Brief background of the candidate',
+    },
+    manifesto_summary: {
+        type: DataTypes.TEXT,
+        comment: 'Key promises/goals for the election',
+    },
     votes_received: {
         type: DataTypes.INTEGER,
         defaultValue: 0,

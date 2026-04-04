@@ -126,11 +126,13 @@ You should see `healthy` or `running` next to each service. If any shows `starti
 
 **Expected output:**
 ```
-NAME                STATUS
-election-postgres   running (healthy)
-election-mongodb    running (healthy)
-election-redis      running (healthy)
-election-mqtt       running (healthy)
+NAME                  STATUS
+election-grafana      running (healthy)
+election-mongodb      running (healthy)
+election-mqtt         running (healthy)
+election-postgres     running (healthy)
+election-prometheus   running (healthy)
+election-redis        running (healthy)
 ```
 
 ### Verify the database initialized
@@ -139,7 +141,9 @@ election-mqtt       running (healthy)
 docker compose exec postgres psql -U election_admin -d election_db -c "\dt"
 ```
 
-You should see a list of tables like `elections`, `candidates`, `voters`, etc.
+You should see exactly **10 tables**:
+*   `admin_users`, `audit_logs`, `candidates`, `districts`, `elections`
+*   `fraud_alerts`, `iot_terminals`, `system_config`, `voters`, `voting_records`
 
 ---
 
@@ -191,124 +195,47 @@ curl http://localhost:3000/health
 
 ---
 
-## PART 5 — Admin Portal
+## PART 5 — Unified Frontend, ML Service & IoT Terminal
+
+### 5.1 · ElectionOS (Frontend)
 
 ```bash
 # New terminal tab
-cd ElectionManagement/admin-portal
+cd ElectionManagement/frontend
 npm install
 npm run dev
 ```
 
-This installs: `react`, `react-router-dom`, `axios`, `chart.js`, `lucide-react`.
+This project uses: `react`, `react-router-dom`, `vite`, `lucide-react`, `chart.js`.
 
-Open browser → **http://localhost:3001**
+**Access the Portals:**
+Open your browser to: **http://localhost:3001**
+* **Voter UI**: `http://localhost:3001/voter`
+* **Admin Portal**: `http://localhost:3001/admin`
+* **Observer Dashboard**: `http://localhost:3001/results`
+* **Verification Portal**: `http://localhost:3001/verify`
 
-You should see the **Admin Login** page.
-
-> ✅ Status: Complete. Login, Dashboard, and Candidate Management fully operational.
-
----
-
-## PART 6 — Verification Portal (Public Vote Checker)
-
-```bash
-# New terminal tab
-cd ElectionManagement/verification-portal
-npm install
-npm run dev
-```
-
-This installs: `react`, `react-router-dom`, `axios`, `qr-scanner`, `react-qr-reader`, `lucide-react`.
-
-Open browser → **http://localhost:3002**
-
-You should see the **Public Verification Portal** with QR scan + manual entry.
-
-> ✅ Status: 95% complete and fully functional.
-
----
-
-## PART 7 — Voter UI
+### 5.2 · ML Fraud Detection Service
 
 ```bash
 # New terminal tab
-cd ElectionManagement/voter-ui
-npm install
-npm run dev
-```
+cd ElectionManagement/ml-service
 
-This installs: `react`, `react-router-dom`, `axios`, `zustand`, `tailwindcss`.
-
-Open browser → **http://localhost:5173**
-
-> ✅ Status: Complete. 7-step accessible voting flow with i18n and voice guidance operational.
-
----
-
-## PART 8 — ML Fraud Detection Service (Optional)
-
-> **💡 Run via VS Code Google Colab Extension (Recommended):**  
-> If you don't want to run this locally, you can use Google Colab's compute engines directly inside your editor.
-> 1. Install the official `Google Colab` extension by Google in your VS Code / Cursor IDE. (It will also install the necessary Jupyter extensions).
-> 2. Create a new dummy file in VS Code anywhere called `test.ipynb` and open it.
-> 3. Click the **"Select Kernel"** button in the top-right corner of the notebook interface.
-> 4. From the dropdown, choose **"Select Another Kernel..."**, then select **"Colab"**, and sign into your Google Account if prompted.
-> 5. Choose your compute tier (e.g. Free T4 GPU or CPU).
-> 6. Once connected, open a VS Code terminal. The terminal (if supported by your connection method) and the notebook cells will now execute on Colab servers!
-> 
-> ```python
-> # If running via a notebook cell instead of the terminal, you can run:
-> !cd ElectionManagement/ml-analytics && pip install -r requirements.txt && python src/main.py
-> ```
-> *(Note: Colab will automatically forward port 5000 so your frontend can still reach `http://localhost:5000`)*
-
-### Local Setup (Alternative)
-
-```bash
-# New terminal tab
-cd ElectionManagement/ml-analytics
-
-# Create a Python virtual environment (keeps packages isolated)
+# Create a Python virtual environment
 python3 -m venv venv
-
-# Activate it
 source venv/bin/activate
 
 # Install packages
 pip install -r requirements.txt
+
+# Start the service
+python api.py
 ```
 
-This installs: `numpy`, `pandas`, `scikit-learn`, `scipy`, `pymongo`, `flask`, `flask-cors`, `joblib`, `statsmodels`.
-
-```bash
-# Start the ML service
-python src/main.py
-```
-
-Service runs on **http://localhost:5000**
-
+Service runs on: **http://localhost:5000**
 > Run `deactivate` to exit the Python virtual environment when done.
 
----
-
-## PART 9 — IoT Terminal (If You Have the Hardware)
-
-Requires: R307 fingerprint sensor connected via USB serial.
-
-> **💡 Run via VS Code Google Colab Extension:**  
-> Since the IoT terminal requires access to local hardware (like `/dev/tty.usbserial` for the fingerprint sensor), running this entirely in the cloud on Colab is generally **not recommended** because the cloud machine cannot easily access your physical USB ports.
-> However, if you are testing the backend integration without sensors, you can use Colab:
-> 1. Connect to Colab using the VS Code extension as described in Part 8.
-> 2. Open a Colab-connected terminal and run:
-> ```bash
-> cd ElectionManagement/iot-terminal
-> pip install -r requirements.txt
-> pip install pyserial paho-mqtt python-dotenv
-> ```
-> *(Note: The terminal requires MQTT, which Colab would need to reach via a public IP, ngrok tunnel, or by running the MQTT broker in Colab as well).*
-
-### Local Setup (For Hardware Access)
+### 5.3 · IoT Terminal (If You Have the Hardware)
 
 ```bash
 cd ElectionManagement/iot-terminal
@@ -322,10 +249,8 @@ pip install -r requirements.txt
 pip install pyserial paho-mqtt python-dotenv
 ```
 
-### Configure the terminal
-
+**Configure the terminal:**
 Edit `config.json`:
-
 ```json
 {
   "terminal_id": "TERMINAL_001",
@@ -335,34 +260,16 @@ Edit `config.json`:
 }
 ```
 
-> Find your serial port: `ls /dev/tty.*` — look for `usbserial` or `usbmodem`
-
 ```bash
-# Test sensor only (no MQTT needed)
-python src/sensor/r307_driver.py --test
-
-# Test VVPAT printer
-python src/printer/vvpat_printer.py --test
-
 # Run full terminal
 python src/terminal_main.py
 ```
 
 ---
 
-## PART 10 — Election Simulation (No Hardware Needed)
+## PART 6 — Election Simulation (No Hardware Needed)
 
 Use this to generate fake voters and votes for testing — no physical hardware required.
-
-> **💡 Run via VS Code Google Colab Extension (Recommended):**  
-> 1. Ensure you are connected to the Colab kernel in VS Code as described in Part 8.
-> 2. Open auto-forwarded ports for MQTT/Postgres if necessary, or run this script in a Colab-connected terminal:
-> ```bash
-> cd ElectionManagement/scripts/simulation
-> pip install -r requirements.txt
-> ```
-
-### Local Setup (Alternative)
 
 ```bash
 cd ElectionManagement/scripts/simulation
@@ -373,22 +280,14 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
 
-```bash
 # Run a small 100-voter simulation
 python simulate-election.py --scenario small
-
-# Or medium (1,000 voters)
-python simulate-election.py --scenario medium
-
-# Or large (10,000 voters)
-python simulate-election.py --scenario large
 ```
 
 ---
 
-## PART 11 — Test the Full API Flow
+## PART 7 — Test the Full API Flow
 
 With the backend running, try this sequence of curl commands:
 
@@ -453,10 +352,8 @@ curl -s http://localhost:3000/api/v1/results/YOUR_ELECTION_ID | python3 -m json.
 |------|---------|-----|
 | Start infra (DBs + MQTT) | `docker compose up -d postgres mongodb redis mqtt-broker` | — |
 | Backend API | `cd backend && npm run dev` | http://localhost:3000/api/v1 |
-| Admin Portal | `cd admin-portal && npm run dev` | http://localhost:3001 |
-| Verification Portal | `cd verification-portal && npm run dev` | http://localhost:3002 |
-| Voter UI | `cd voter-ui && npm run dev` | http://localhost:5173 |
-| ML Service | `cd ml-analytics && source venv/bin/activate && python src/main.py` | http://localhost:5000 |
+| ElectionOS (Frontend) | `cd frontend && npm run dev` | http://localhost:3001 |
+| ML Service | `cd ml-service && source venv/bin/activate && python api.py` | http://localhost:5000 |
 | Simulation | `cd scripts/simulation && source venv/bin/activate && python simulate-election.py --scenario small` | — |
 
 ---
@@ -466,9 +363,7 @@ curl -s http://localhost:3000/api/v1/results/YOUR_ELECTION_ID | python3 -m json.
 | Port | Service |
 |------|---------|
 | 3000 | Backend API |
-| 3001 | Admin Portal |
-| 3002 | Verification Portal |
-| 5173 | Voter UI |
+| 3001 | ElectionOS (Frontend) |
 | 5000 | ML Service |
 | 5432 | PostgreSQL |
 | 27017 | MongoDB |

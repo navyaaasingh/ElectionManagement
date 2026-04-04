@@ -1,8 +1,8 @@
-# 🔐 Secure and Transparent Election Management System
+# 🗳️ ElectionOS: Secure & Transparent Digital Election Ecosystem
 
-A **blockchain-based, IoT-enabled election management system** designed to ensure **security, transparency, and auditability** in large-scale elections, especially for developing countries. The system integrates **biometric authentication**, **permissioned blockchain (Hyperledger Fabric)**, **real-time analytics**, and **machine-learning-based fraud detection**.
+A **blockchain-hardened, IoT-enabled ecosystem** designed for **high-trust institutional elections**. ElectionOS integrates **Zero-Knowledge Proofs (ZKP)**, **Biometric Authentication**, and **DPDP Act-compliant Data Privacy flows** into a unified digital framework.
 
-> **Status:** Implementation Complete — Backend APIs, Blockchain, ML Ensemble, DevOps, Security & Pilot Testing
+> **Status:** 🏁 **Enterprise Phase Complete** — Unified "ElectionOS" Shell Deployment & ZKP-Hardened Audit Trails
 
 ---
 
@@ -57,16 +57,14 @@ This project proposes a **technology-driven election framework** that guarantees
 
 ## 🧠 Key Features
 
-* ✅ **Biometric-based voter authentication** (fingerprint hashing)
-* 🔗 **Permissioned blockchain ledger** for immutable vote storage
-* 🗳️ **Secure IoT voting terminal** using ESP32
-* 🔐 **End-to-end encrypted vote casting**
-* 📊 **Real-time election results dashboard**
-* 🚨 **ML ensemble fraud detection** (Isolation Forest + XGBoost + LSTM)
-* 📡 **Kafka event streaming** with WebSocket push notifications
-* 👁️ **Observer-friendly audit and verification tools**
-* 🌐 **Multi-language support** (6 languages)
-* ♿ **Accessibility features** (low-literacy, voice guidance)
+* ✅ **Biometric-based voter authentication** (SHA-256 fingerprint hashing)
+* 🔗 **Blockchain-hardened tallying** with Hyperledger Fabric (permissioned) and Monad (anchoring)
+* 🔐 **Zero-Knowledge Proofs (ZKP)** for privacy-preserving vote verification
+* 🗳️ **ElectionOS Shell** — A unified frontend consolidating Admin, Voter, Observer, and Verification portals
+* ⚖️ **DPDP Act Compliance** — Integrated data privacy consent and legal audit infrastructure
+* 🚨 **ML Ensemble Fraud Detection** (Isolation Forest + XGBoost + LSTM)
+* 📡 **Kafka & WebSocket** real-time telemetry and push notifications
+* 🌐 **Multi-language & Accessibility** support (voice-guided, low-literacy optimized)
 
 ---
 
@@ -119,12 +117,13 @@ This project proposes a **technology-driven election framework** that guarantees
 
 > **See:** [API Contracts](docs/architecture/API_CONTRACTS.md) | [OpenAPI Spec](docs/api/openapi.yaml)
 
-### 5️⃣ Frontend Interfaces
-* **Voter Interface** — 7-step accessible flow, multi-language, voice guidance
-* **Observer Dashboard** — Live vote tally, Chart.js visualizations, fraud alerts
-* **Admin Portal** — Election creation wizard, poll control
+### 5️⃣ ElectionOS (Unified Frontend)
+* Consolidated **React + Vite** application for all roles (Admin, Voter, Observer, Auditor)
+* Role-based access control (RBAC) with protected routes
+* Centralized state management for multi-step candidate and election creation flows
+* Integrated **Verification Portal** using Sigma-protocol ZKP proofs
 
-> **See:** [UX Specification](docs/frontend/UX_SPEC.md) | [Voter UI README](voter-ui/README.md)
+> **See:** [Frontend README](frontend/README.md)
 
 ### 6️⃣ ML-Based Fraud Detection (Ensemble)
 * **3-model ensemble** — Isolation Forest (40%) + XGBoost (40%) + LSTM (20%)
@@ -162,40 +161,18 @@ This project proposes a **technology-driven election framework** that guarantees
 ```
 ElectionManagement/
 │
-├── backend/                   ← Node.js API server
-│   ├── src/
-│   │   ├── controllers/      ← Election, candidate, vote logic
-│   │   ├── services/         ← Auth, Fabric SDK, Kafka, WebSocket
-│   │   ├── routes/           ← API routes (14 endpoints)
-│   │   ├── models/           ← Sequelize + Mongoose models
-│   │   ├── middleware/       ← Auth, rate limiting, MAC filter
-│   │   └── utils/            ← Security audit tools
-│   └── package.json
+├── backend/                   ← Node.js API server (CommonJS-hardened)
+├── frontend/                  ← **ElectionOS Unified Shell** (Admin, Voter, Observer, Verify)
+│   ├── src/components/       ← Role-specific dashboard & portal components
+│   └── src/context/          ← Global state & auth context
 │
-├── blockchain/                ← Hyperledger Fabric
-│   ├── chaincode/            ← Go smart contracts
-│   ├── network/              ← Crypto config + channel setup
-│   └── scripts/              ← Start/stop/deploy scripts
-│
-├── iot-terminal/              ← ESP32 firmware (C++)
-│   ├── esp32_firmware/       ← Biometric + MQTT + offline cache
-│   └── platformio.ini
-│
-├── ml-service/                ← ML fraud detection (Python)
-│   ├── fraud_detector.py     ← Ensemble engine (IF + XGB + LSTM)
-│   ├── kafka_consumer.py     ← Kafka stream processor
-│   ├── api.py                ← Flask REST API
-│   ├── *.ipynb               ← Jupyter notebook versions
-│   └── requirements.txt
-│
-├── voter-ui/                  ← Voter interface (React)
-├── observer-dashboard/        ← Observer dashboard (React)
-├── frontend/                  ← Admin portal (React + Vite)
-│
-├── infrastructure/
-│   ├── kubernetes/           ← K8s manifests (namespace, deployments, ingress, HPA)
-│   ├── monitoring/           ← Prometheus config, alerting rules, Grafana dashboard
-│   └── docker/               ← Dockerfiles
+├── blockchain/                ← Hyperledger Fabric & Monad adapters
+├── iot-terminal/              ← ESP32 firmware (C++ / Arduino)
+├── ml-service/                ← ML fraud detection ensemble (Python)
+├── infrastructure/            ← K8s manifests, Monitoring (Prometheus/Grafana)
+├── scripts/                   ← Simulation & setup tools
+├── docs/                      ← Comprehensive technical specifications
+└── docker-compose.yml         ← Development orchestration
 │
 ├── tests/
 │   ├── load/                 ← Artillery load testing (500 VU burst)

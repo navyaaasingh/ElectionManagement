@@ -9,8 +9,20 @@ const Voter = sequelize.define('voters', {
     },
     roll_number: {
         type: DataTypes.STRING(20),
-        allowNull: true, // Existing voters might not have it yet
+        allowNull: true,
         unique: true,
+    },
+    email: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true,
+        validate: {
+            isEmail: true,
+        },
+    },
+    password: {
+        type: DataTypes.STRING(255),
+        allowNull: true, // Only if choosing email/password login
     },
     aadhar_number: {
         type: DataTypes.STRING(12),
@@ -27,9 +39,9 @@ const Voter = sequelize.define('voters', {
     },
     biometric_hash: {
         type: DataTypes.STRING(64),
-        allowNull: false,
+        allowNull: true, // Nullable initially for email signup
         unique: true,
-        comment: 'SHA-256 hash of fingerprint template',
+        comment: 'SHA-256 hash of fingerprint template (optional if using WebAuthn)',
     },
     district_id: {
         type: DataTypes.UUID,
@@ -44,20 +56,32 @@ const Voter = sequelize.define('voters', {
         defaultValue: false,
         allowNull: false,
     },
-    registration_date: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
+    is_approved: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
     },
-    status: {
-        type: DataTypes.ENUM('active', 'suspended', 'deceased'),
-        defaultValue: 'active',
+    is_biometric_registered: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    aadhaar_verified: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+    device_id: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        comment: 'Unique ID of the device used for registration/voting',
     },
 }, {
     indexes: [
         { fields: ['aadhar_number'] },
+        { fields: ['email'] },
         { fields: ['biometric_hash'] },
         { fields: ['district_id'] },
         { fields: ['has_voted'] },
+        { fields: ['status'] },
+        { fields: ['device_id'] },
     ],
     timestamps: true,
     tableName: 'voters',

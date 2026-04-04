@@ -12,6 +12,7 @@ import { FormProvider } from './context/FormContext.jsx'
 import CandidatePortal from './components/CandidatePortal.jsx'
 import CreateAccount from './components/CreateAccount.jsx'
 import LoginPage from './components/LoginPage.jsx'
+import SignupPage from './components/SignupPage.jsx'
 import DemoPage from './components/DemoPage.jsx'
 import NotFound from './components/NotFound.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -132,7 +133,7 @@ function WorkspaceShell() {
                 style={{ cursor: 'pointer' }}
                 title="Click to sign out"
               >
-                {user ? (user.username || user.fullName) : 'Sign out'}
+                {user ? (user.username || (user.fullName || user.voterId)) : 'Sign out'}
               </div>
             </div>
           </div>
@@ -183,6 +184,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PublicLanding />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/demo" element={<DemoPage />} />
             <Route path="/about" element={<LegalPage title="About CampusVote" body="CampusVote is an enterprise-grade election management system designed exclusively for higher education institutions. Our platform integrates biometric identity verification, immutable blockchain auditing, and real-time fraud monitoring to deliver secure, transparent, and scalable digital elections. Engineered to meet the rigorous demands of institutional governance, CampusVote ensures voter privacy while maintaining deterministic auditability." />} />
             <Route path="/privacy" element={<LegalPage title="Privacy Policy" body="CampusVote operates under a strict data minimization protocol. Voter identity processing, including biometric matching, occurs exclusively within the isolated institutional terminal environment. Biometric templates are generated ephemerally and are never transmitted to our central servers or written to the blockchain. All election event data is cryptographically hashed, rendering individual ballots mathematically detached from plaintext voter identities. System access logs and configuration changes are retained for compliance review under applicable regional privacy regulations (including GDPR and CCPA alignments)." />} />
@@ -195,7 +197,7 @@ export default function App() {
             <Route path="/observer" element={<Navigate to="/app/observer" replace />} />
             <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
             <Route path="/verify" element={<Navigate to="/app/verify" replace />} />
-            <Route path="/create" element={<Navigate to="/app/create" replace />} />
+            <Route path="/create" element={<Navigate to="/signup" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

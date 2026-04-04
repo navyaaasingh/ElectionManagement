@@ -177,6 +177,9 @@ const INITIAL_STATE = {
   receipt: null,
   error: null,
   note: null,
+  searchQuery: '',
+  filterParty: 'All',
+  showingManifesto: null,
 }
 
 function text(locale, key) {
@@ -212,6 +215,10 @@ function normalizeCandidate(candidate, index) {
     name: candidate.name || candidate.full_name || candidate.candidate_name || `Candidate ${index + 1}`,
     party: candidate.party || candidate.party_name || 'Independent',
     districtId: candidate.districtId || candidate.district_id || null,
+    photo: candidate.candidate_photo || null,
+    position: candidate.position_title || 'Candidate',
+    biography: candidate.biography || 'No biography available for this candidate.',
+    manifesto: candidate.manifesto_summary || 'No manifesto summary provided.',
   }
 }
 
@@ -365,6 +372,8 @@ export default function VoterUI() {
           election,
           candidates,
           selectedCandidate: candidates[0] || null,
+          filterParty: 'All',
+          searchQuery: '',
         }))
       } catch (error) {
         if (cancelled) return
@@ -555,24 +564,104 @@ export default function VoterUI() {
 
             {loading ? <p className="terminal-subtle">{currentText('loadingCandidates')}...</p> : null}
 
+            {!loading && state.candidates.length > 0 && (
+              <div className="voter-filters" style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <input 
+                  type="text" 
+                  placeholder="Search candidate name..." 
+                  className="filter-input"
+                  style={{ flex: 1, minWidth: '200px', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '0.9rem' }}
+                  value={state.searchQuery}
+                  onChange={(e) => setState(c => ({ ...c, searchQuery: e.target.value }))}
+                />
+                <select 
+                  className="filter-select"
+                  style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '0.9rem', cursor: 'pointer' }}
+                  value={state.filterParty}
+                  onChange={(e) => setState(c => ({ ...c, filterParty: e.target.value }))}
+                >
+                  <option value="All">All Parties</option>
+                  {[...new Set(state.candidates.map(c => c.party))].map(party => (
+                    <option key={party} value={party}>{party}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {!loading && state.candidates.length === 0 ? (
               <p className="terminal-subtle">{currentText('noCandidates')}</p>
             ) : (
               <div className="candidate-grid">
-                {state.candidates.map((candidate) => (
-                  <button
+                {state.candidates
+                  .filter(c => state.filterParty === 'All' || c.party === state.filterParty)
+                  .filter(c => c.name.toLowerCase().includes(state.searchQuery.toLowerCase()))
+                  .map((candidate) => (
+                  <div 
                     key={candidate.id}
-                    type="button"
-                    className={`candidate-card${state.selectedCandidate?.id === candidate.id ? ' active' : ''}`}
-                    onClick={() => setState((current) => ({ ...current, selectedCandidate: candidate }))}
+                    className={`candidate-wrapper${state.selectedCandidate?.id === candidate.id ? ' active' : ''}`}
+                    style={{ position: 'relative' }}
                   >
-                    <div className="candidate-avatar">{candidate.name.slice(0, 1)}</div>
-                    <div className="candidate-copy">
-                      <strong>{candidate.name}</strong>
-                      <span>{candidate.party}</span>
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      className={`candidate-card${state.selectedCandidate?.id === candidate.id ? ' active' : ''}`}
+                      onClick={() => setState((current) => ({ ...current, selectedCandidate: candidate }))}
+                    >
+                      <div className="candidate-avatar">
+                        {candidate.photo ? (
+                          <img src={candidate.photo} alt={candidate.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : candidate.name.slice(0, 1)}
+                      </div>
+                      <div className="candidate-copy">
+                        <span className="candidate-position-badge" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                          {candidate.position}
+                        </span>
+                        <strong>{candidate.name}</strong>
+                        <span>{candidate.party}</span>
+                      </div>
+                    </button>
+                    <button 
+                      className="manifesto-trigger"
+                      style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(79, 70, 229, 0.08)', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '0.7rem', fontWeight: 600, color: '#4f46e5', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setState(c => ({ ...c, showingManifesto: candidate }));
+                      }}
+                    >
+                      View Profile
+                    </button>
+                  </div>
                 ))}
+              </div>
+            )}
+
+            {state.showingManifesto && (
+              <div className="manifesto-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifySelf: 'center', padding: '24px' }}>
+                <div className="manifesto-modal" style={{ background: 'white', width: 'min(640px, 100%)', margin: 'auto', borderRadius: '24px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div className="candidate-avatar large" style={{ width: '64px', height: '64px', background: '#eef2ff', color: '#4f46e5', fontSize: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyCenter: 'center', borderRadius: '20px' }}>
+                        {state.showingManifesto.photo ? <img src={state.showingManifesto.photo} style={{ width: '100%', height: '100%', borderRadius: '20px' }} /> : state.showingManifesto.name.slice(0,1)}
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{state.showingManifesto.name}</h3>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>{state.showingManifesto.party} • {state.showingManifesto.position}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setState(c => ({ ...c, showingManifesto: null }))} style={{ background: '#f1f5f9', border: 'none', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 600 }}>Close</button>
+                  </div>
+                  
+                  <div style={{ marginBottom: '24px' }}>
+                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#4f46e5', letterSpacing: '0.1em', marginBottom: '8px' }}>Biography</h4>
+                    <p style={{ color: '#334155', lineHeight: 1.6, fontSize: '0.95rem' }}>{state.showingManifesto.biography}</p>
+                  </div>
+
+                  <div style={{ marginBottom: '8px' }}>
+                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#4f46e5', letterSpacing: '0.1em', marginBottom: '8px' }}>Campaign Manifesto</h4>
+                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', color: '#334155', lineHeight: 1.6, fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
+                      {state.showingManifesto.manifesto}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -597,7 +686,10 @@ export default function VoterUI() {
               </div>
               <div className="terminal-kicker">{currentText('confirm')}</div>
               <h2>{state.selectedCandidate?.name}</h2>
-              <p>{state.selectedCandidate?.party}</p>
+              <p style={{ margin: 0, fontWeight: 700, color: '#4f46e5', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+                {state.selectedCandidate?.position}
+              </p>
+              <p style={{ marginTop: '4px' }}>{state.selectedCandidate?.party}</p>
             </div>
 
             <div className="terminal-actions spread">
