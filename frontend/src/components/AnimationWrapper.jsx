@@ -102,3 +102,43 @@ export const SlideInHorizontal = ({ children, direction = 'left', delay = 0 }) =
     {children}
   </motion.div>
 )
+
+/**
+ * RevealText - Word-by-word staggered reveal
+ */
+export const RevealText = ({ text, delay = 0, className = '' }) => {
+  const words = text.split(' ')
+  
+  return (
+    <motion.h1
+      className={className}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.08,
+            delayChildren: delay
+          }
+        }
+      }}
+    >
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          variants={{
+            hidden: { opacity: 0, y: 15 },
+            visible: { opacity: 1, y: 0 }
+          }}
+          transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
+          style={{ display: 'inline-block', marginRight: '0.25em' }}
+        >
+          {word}
+        </motion.span>
+      ))}
+    </motion.h1>
+  )
+}

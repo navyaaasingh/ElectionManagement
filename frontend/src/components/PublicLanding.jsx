@@ -8,7 +8,8 @@ import {
   StaggerItem, 
   AnimatedCounter, 
   AnimatedButton, 
-  SlideInHorizontal 
+  SlideInHorizontal,
+  RevealText
 } from './AnimationWrapper.jsx'
 
 const TRUST_POINTS = [
@@ -68,13 +69,11 @@ export default function PublicLanding() {
       <div className="public-hero">
         <FadeInUp delay={0.1}>
           <p className="section-kicker">Secure digital elections for universities</p>
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
-          >
-            Your students deserve an election no one can rig.
-          </motion.h1>
+          <RevealText 
+            delay={0.2} 
+            text="Your students deserve an election no one can rig." 
+            className="hero-headline" 
+          />
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

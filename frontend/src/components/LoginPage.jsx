@@ -8,6 +8,8 @@ import {
   getPasskeyLoginOptions, 
   verifyPasskeyLogin 
 } from '../api/auth.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FadeInUp, AnimatedButton } from './AnimationWrapper'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -135,188 +137,252 @@ export default function LoginPage() {
         <h1>{activeTab === 'voter' ? 'Voter Authentication' : 'Admin Portal'}</h1>
       </div>
 
-      <div className="surface-card" style={{ padding: '0', overflow: 'hidden' }}>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="surface-card" 
+        style={{ padding: '0', overflow: 'hidden' }}
+      >
         {/* Main Tabs: Voter / Admin */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-sunken)' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--line-soft)', background: 'var(--surface-sunken)', position: 'relative' }}>
           <button 
             className={`tab-btn ${activeTab === 'voter' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('voter'); setStatus(null); }}
             style={{ 
               flex: 1, 
-              padding: '16px', 
-              background: activeTab === 'voter' ? 'var(--surface)' : 'none', 
+              padding: '20px', 
+              background: 'none', 
               border: 'none', 
               color: activeTab === 'voter' ? 'var(--brand)' : 'var(--ink-soft)',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '1rem',
+              zIndex: 1
             }}
           >
-            Voter
+            Voter Account
           </button>
           <button 
             className={`tab-btn ${activeTab === 'admin' ? 'is-active' : ''}`}
             onClick={() => { setActiveTab('admin'); setStatus(null); }}
             style={{ 
               flex: 1, 
-              padding: '16px', 
-              background: activeTab === 'admin' ? 'var(--surface)' : 'none', 
+              padding: '20px', 
+              background: 'none', 
               border: 'none', 
               color: activeTab === 'admin' ? 'var(--brand)' : 'var(--ink-soft)',
               fontWeight: 700,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontSize: '1rem',
+              zIndex: 1
             }}
           >
             Administrator
           </button>
+          <motion.div 
+            layoutId="activeTab"
+            style={{ 
+              position: 'absolute', 
+              bottom: 0, 
+              left: activeTab === 'voter' ? '0%' : '50%', 
+              width: '50%', 
+              height: '3px', 
+              background: 'var(--brand)',
+              boxShadow: '0 -4px 12px rgba(79, 70, 229, 0.2)'
+            }} 
+          />
         </div>
 
-        <div style={{ padding: '32px' }}>
-          {activeTab === 'voter' ? (
-            <>
-              {/* Voter Method Selection */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '32px', padding: '4px', background: 'var(--surface-sunken)', borderRadius: '8px' }}>
-                <TabButton 
-                  id="email" label="ID & Pass" active={voterMethod === 'email'} 
-                  onClick={() => setVoterMethod('email')} 
-                />
-                <TabButton 
-                  id="aadhaar" label="Aadhaar" active={voterMethod === 'aadhaar'} 
-                  onClick={() => setVoterMethod('aadhaar')} 
-                />
-                <TabButton 
-                  id="biometric" label="Biometric" active={voterMethod === 'biometric'} 
-                  onClick={() => setVoterMethod('biometric')} 
-                />
-              </div>
+        <div style={{ padding: '40px' }}>
+          <AnimatePresence mode="wait">
+            {activeTab === 'voter' ? (
+              <motion.div
+                key="voter-flow"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Voter Method Selection */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '40px', padding: '6px', background: 'var(--surface-sunken)', borderRadius: '14px' }}>
+                  <TabButton 
+                    id="email" label="ID & Pass" active={voterMethod === 'email'} 
+                    onClick={() => setVoterMethod('email')} 
+                  />
+                  <TabButton 
+                    id="aadhaar" label="Aadhaar" active={voterMethod === 'aadhaar'} 
+                    onClick={() => setVoterMethod('aadhaar')} 
+                  />
+                  <TabButton 
+                    id="biometric" label="Biometric" active={voterMethod === 'biometric'} 
+                    onClick={() => setVoterMethod('biometric')} 
+                  />
+                </div>
 
-              {voterMethod === 'email' && (
-                <form onSubmit={handleEmailLogin}>
-                  <div className="field-group" style={{ marginBottom: '20px' }}>
-                    <label className="field-label">Institutional Email</label>
-                    <input 
-                      className="field-input" type="email" 
-                      value={emailForm.email}
-                      onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
-                      placeholder="student@university.edu" required
-                    />
-                  </div>
-                  <div className="field-group" style={{ marginBottom: '20px' }}>
-                    <label className="field-label">Password</label>
-                    <input 
-                      className="field-input" type="password" 
-                      value={emailForm.password}
-                      onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
-                      placeholder="••••••••" required
-                    />
-                  </div>
-                  <button type="submit" className="button button--primary" style={{ width: '100%' }} disabled={status === 'loading'}>
-                    {status === 'loading' ? 'Authenticating...' : 'Sign In'}
-                  </button>
-                </form>
-              )}
+                <AnimatePresence mode="wait">
+                {voterMethod === 'email' && (
+                  <motion.form 
+                    key="email-form"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    onSubmit={handleEmailLogin}
+                  >
+                    <div className="field-group" style={{ marginBottom: '24px' }}>
+                      <label className="field-label">Institutional Email</label>
+                      <input 
+                        className="field-input" type="email" 
+                        value={emailForm.email}
+                        onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
+                        placeholder="student@university.edu" required
+                        style={{ padding: '14px 18px', borderRadius: '12px' }}
+                      />
+                    </div>
+                    <div className="field-group" style={{ marginBottom: '28px' }}>
+                      <label className="field-label">Password</label>
+                      <input 
+                        className="field-input" type="password" 
+                        value={emailForm.password}
+                        onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                        placeholder="••••••••" required
+                        style={{ padding: '14px 18px', borderRadius: '12px' }}
+                      />
+                    </div>
+                    <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
+                      {status === 'loading' ? 'Authenticating...' : 'Sign In'}
+                    </AnimatedButton>
+                  </motion.form>
+                )}
 
-              {voterMethod === 'aadhaar' && (
-                <form onSubmit={handleAadhaarVerify}>
-                  <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', marginBottom: '24px' }}>
-                    Verify your identity using your 12-digit Aadhaar number for instant eligibility check.
-                  </p>
-                  <div className="field-group" style={{ marginBottom: '20px' }}>
-                    <label className="field-label">Aadhaar Number</label>
-                    <input 
-                      className="field-input" type="text" maxLength="12"
-                      value={aadhaarNumber}
-                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
-                      placeholder="XXXX XXXX XXXX" required
-                    />
-                  </div>
-                  <button type="submit" className="button button--primary" style={{ width: '100%' }} disabled={status === 'loading'}>
-                    {status === 'loading' ? 'Verifying...' : 'Verify Identity'}
-                  </button>
-                </form>
-              )}
+                {voterMethod === 'aadhaar' && (
+                  <motion.form 
+                    key="aadhaar-form"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    onSubmit={handleAadhaarVerify}
+                  >
+                    <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
+                      Verify your identity using your 12-digit Aadhaar number for instant eligibility check.
+                    </p>
+                    <div className="field-group" style={{ marginBottom: '28px' }}>
+                      <label className="field-label">Aadhaar Number</label>
+                      <input 
+                        className="field-input" type="text" maxLength="12"
+                        value={aadhaarNumber}
+                        onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                        placeholder="XXXX XXXX XXXX" required
+                        style={{ padding: '16px 20px', borderRadius: '12px', fontSize: '1.1rem', letterSpacing: '0.1em' }}
+                      />
+                    </div>
+                    <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
+                      {status === 'loading' ? 'Verifying...' : 'Verify Identity'}
+                    </AnimatedButton>
+                  </motion.form>
+                )}
 
-              {voterMethod === 'biometric' && (
-                <form onSubmit={handlePasskeyLogin}>
-                  <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', marginBottom: '24px' }}>
-                    Use your device's native biometric (TouchID/FaceID) for the most secure login.
-                  </p>
-                  <div className="field-group" style={{ marginBottom: '20px' }}>
-                    <label className="field-label">Registered Email</label>
-                    <input 
-                      className="field-input" type="email" 
-                      value={passkeyEmail}
-                      onChange={(e) => setPasskeyEmail(e.target.value)}
-                      placeholder="email@example.com" required
-                    />
-                  </div>
-                  <button type="submit" className="button button--primary" style={{ width: '100%' }} disabled={status === 'loading'}>
-                    {status === 'loading' ? 'Checking Passkey...' : 'Sign in with Biometrics'}
-                  </button>
-                  <p style={{ marginTop: '16px', fontSize: '0.8rem', textAlign: 'center', color: 'var(--ink-soft)' }}>
-                    Requires a pre-registered biometric key.
-                  </p>
-                </form>
-              )}
-            </>
-          ) : (
-            <form onSubmit={handleAdminLogin}>
-              <div className="field-group" style={{ marginBottom: '20px' }}>
-                <label className="field-label">Username</label>
-                <input 
-                  className="field-input" type="text" 
-                  value={adminForm.username}
-                  onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
-                  placeholder="Admin username" required
-                />
-              </div>
-              <div className="field-group" style={{ marginBottom: '20px' }}>
-                <label className="field-label">Password</label>
-                <input 
-                  className="field-input" type="password" 
-                  value={adminForm.password}
-                  onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
-                  placeholder="••••••••" required
-                />
-              </div>
-              <button type="submit" className="button button--primary" style={{ width: '100%' }} disabled={status === 'loading'}>
-                {status === 'loading' ? 'Verifying...' : 'Institutional Sign In'}
-              </button>
-            </form>
-          )}
+                {voterMethod === 'biometric' && (
+                  <motion.form 
+                    key="biometric-form"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    onSubmit={handlePasskeyLogin}
+                  >
+                    <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
+                      Use your device's native biometric (TouchID/FaceID) for the most secure login.
+                    </p>
+                    <div className="field-group" style={{ marginBottom: '28px' }}>
+                      <label className="field-label">Registered Email</label>
+                      <input 
+                        className="field-input" type="email" 
+                        value={passkeyEmail}
+                        onChange={(e) => setPasskeyEmail(e.target.value)}
+                        placeholder="email@example.com" required
+                        style={{ padding: '14px 18px', borderRadius: '12px' }}
+                      />
+                    </div>
+                    <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
+                      {status === 'loading' ? 'Checking Passkey...' : 'Sign in with Biometrics'}
+                    </AnimatedButton>
+                    <p style={{ marginTop: '20px', fontSize: '0.85rem', textAlign: 'center', color: 'var(--ink-soft)', opacity: 0.8 }}>
+                      Requires a pre-registered biometric key.
+                    </p>
+                  </motion.form>
+                )}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.form 
+                key="admin-form"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.2 }}
+                onSubmit={handleAdminLogin}
+              >
+                <div className="field-group" style={{ marginBottom: '24px' }}>
+                  <label className="field-label">Username</label>
+                  <input 
+                    className="field-input" type="text" 
+                    value={adminForm.username}
+                    onChange={(e) => setAdminForm({ ...adminForm, username: e.target.value })}
+                    placeholder="Admin username" required
+                    style={{ padding: '14px 18px', borderRadius: '12px' }}
+                  />
+                </div>
+                <div className="field-group" style={{ marginBottom: '28px' }}>
+                  <label className="field-label">Password</label>
+                  <input 
+                    className="field-input" type="password" 
+                    value={adminForm.password}
+                    onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                    placeholder="••••••••" required
+                    style={{ padding: '14px 18px', borderRadius: '12px' }}
+                  />
+                </div>
+                <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
+                  {status === 'loading' ? 'Verifying...' : 'Institutional Sign In'}
+                </AnimatedButton>
+              </motion.form>
+            )}
+          </AnimatePresence>
 
+          <AnimatePresence>
           {status?.error && (
-            <div className="surface-note surface-note--warning" style={{ marginTop: '24px' }}>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="surface-note surface-note--warning" style={{ marginTop: '24px' }}>
               {status.error}
-            </div>
+            </motion.div>
           )}
 
           {status?.success && (
-            <div className="surface-note surface-note--success" style={{ marginTop: '24px' }}>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="surface-note surface-note--success" style={{ marginTop: '24px' }}>
               {status.success}
-            </div>
+            </motion.div>
           )}
 
           {status?.info && (
-            <div className="surface-note surface-note--info" style={{ marginTop: '24px' }}>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="surface-note surface-note--info" style={{ marginTop: '24px' }}>
               {status.info}
-            </div>
+            </motion.div>
           )}
 
           {status?.warning && (
-            <div className="surface-note surface-note--warning" style={{ marginTop: '24px' }}>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="surface-note surface-note--warning" style={{ marginTop: '24px' }}>
               <p style={{ fontWeight: 600, marginBottom: '8px' }}>{status.warning}</p>
               <p style={{ fontSize: '0.9rem', marginBottom: '16px' }}>{status.message}</p>
-              <button 
+              <AnimatedButton 
                 className="button button--secondary" 
                 style={{ width: '100%' }}
                 onClick={() => navigate('/signup', { state: { student: studentFound } })}
               >
                 Start Registration
-              </button>
-            </div>
+              </AnimatedButton>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
 
       <div style={{ marginTop: '32px', textAlign: 'center', color: 'var(--ink-soft)' }}>
         <p style={{ fontSize: '0.9rem' }}>

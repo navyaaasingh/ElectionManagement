@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getMlHealth } from '../api/ml.js'
 import { getAuditLogs } from '../api/admin.js'
 import { loadElectionSnapshot } from '../lib/electionSnapshot.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
 
 export default function ObserverDashBoard() {
   const [tab, setTab] = useState('overview')
@@ -114,65 +116,102 @@ export default function ObserverDashBoard() {
           </div>
         </div>
 
-        <div className="stats-grid">
-          <article className="surface-card stat-card">
-            <span>Total votes</span>
-            <strong>{loading ? '...' : totalVotesCount.toLocaleString()}</strong>
-          </article>
-          <article className="surface-card stat-card">
-            <span>Registered voters</span>
-            <strong>{loading ? '...' : totalVotersCount.toLocaleString()}</strong>
-          </article>
-          <article className="surface-card stat-card">
-            <span>Turnout</span>
-            <strong>{loading ? '...' : summary.turnout}</strong>
-          </article>
-          <article className="surface-card stat-card">
-            <span>Alert count</span>
-            <strong>{alerts.length}</strong>
-          </article>
-        </div>
+        <StaggerContainer className="stats-grid" style={{ marginBottom: '40px' }}>
+          <StaggerItem>
+            <article className="surface-card stat-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Total votes</span>
+              <strong style={{ fontSize: '2rem', marginTop: '8px' }}>{loading ? '...' : totalVotesCount.toLocaleString()}</strong>
+            </article>
+          </StaggerItem>
+          <StaggerItem>
+            <article className="surface-card stat-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Registered voters</span>
+              <strong style={{ fontSize: '2rem', marginTop: '8px' }}>{loading ? '...' : totalVotersCount.toLocaleString()}</strong>
+            </article>
+          </StaggerItem>
+          <StaggerItem>
+            <article className="surface-card stat-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Turnout</span>
+              <strong style={{ fontSize: '2rem', marginTop: '8px', color: 'var(--brand)' }}>{loading ? '...' : summary.turnout}</strong>
+            </article>
+          </StaggerItem>
+          <StaggerItem>
+            <article className="surface-card stat-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Alert count</span>
+              <strong style={{ fontSize: '2rem', marginTop: '8px', color: alerts.length > 0 ? 'var(--danger)' : 'var(--success)' }}>{alerts.length}</strong>
+            </article>
+          </StaggerItem>
+        </StaggerContainer>
 
+        <AnimatePresence mode="wait">
         {tab === 'overview' ? (
-          <div className="workspace-grid">
-            <div className="surface-card">
+          <motion.div 
+            key="overview"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="workspace-grid"
+          >
+            <div className="surface-card" style={{ padding: '32px' }}>
               <div className="section-heading section-heading--compact">
                 <p className="section-kicker">Current posture</p>
                 <h2>Operational summary</h2>
               </div>
-              <div className="detail-list">
-                <div><span>Lead election</span><strong>{summary.leadElection}</strong></div>
-                <div>
+              <div className="detail-list" style={{ marginTop: '24px' }}>
+                <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line-soft)' }}><span>Lead election</span><strong>{summary.leadElection}</strong></div>
+                <div style={{ padding: '16px 0', borderBottom: '1px solid var(--line-soft)' }}>
                   <span>Fraud detection</span>
                   <strong className={mlHealth?.status === 'healthy' ? '' : 'text--muted'}>
                     {mlHealth?.status === 'healthy' ? `Active · v${mlHealth.version || '1.0.0'}` : 'Simulated Traffic Tracking'}
                   </strong>
                 </div>
-                <div><span>High-risk signals</span><strong>{alerts.length} anomalies detected</strong></div>
+                <div style={{ padding: '16px 0' }}><span>High-risk signals</span><strong style={{ color: alerts.length > 0 ? 'var(--danger)' : 'inherit' }}>{alerts.length} anomalies detected</strong></div>
               </div>
             </div>
 
-            <div className="surface-card">
+            <div className="surface-card" style={{ padding: '32px' }}>
               <div className="section-heading section-heading--compact">
                 <p className="section-kicker">Recent system events</p>
                 <h2>Items requiring attention</h2>
               </div>
-              <div className="stack-list">
-                {alerts.slice(0, 3).map((alert) => (
-                  <article key={alert._id || alert.id} className="stack-list__item">
-                    <strong>{alert.event_type || alert.action}</strong>
-                    <span>{alert.metadata?.severity || 'Medium'}</span>
-                    <p>{alert.metadata?.reason || alert.errorMessage || 'System warning captured.'}</p>
-                  </article>
+              <div className="stack-list" style={{ marginTop: '24px' }}>
+                <AnimatePresence>
+                {alerts.slice(0, 3).map((alert, idx) => (
+                  <motion.article 
+                    layout
+                    key={alert._id || alert.id} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="stack-list__item"
+                    style={{ background: 'var(--surface-sunken)', border: '1px solid var(--line-soft)', padding: '16px', borderRadius: '12px', marginBottom: '12px' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <strong style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{alert.event_type || alert.action}</strong>
+                      <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>{alert.metadata?.severity || 'Medium'}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.4 }}>{alert.metadata?.reason || alert.errorMessage || 'System warning captured.'}</p>
+                  </motion.article>
                 ))}
-                {alerts.length === 0 && <p className="text--muted">No critical alerts detected in the last 50 events.</p>}
+                </AnimatePresence>
+                {alerts.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.6 }}>
+                    <p>No critical alerts detected in the last 50 events.</p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          </motion.div>
         ) : null}
 
         {tab === 'feed' ? (
-          <div className="surface-card table-shell">
+          <motion.div 
+            key="feed"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="surface-card table-shell"
+          >
             <table className="data-table">
               <thead>
                 <tr>
@@ -183,50 +222,74 @@ export default function ObserverDashBoard() {
                 </tr>
               </thead>
               <tbody>
-                {auditLogs.map((item) => (
-                  <tr key={item._id || item.id}>
-                    <td>{new Date(item.timestamp).toLocaleTimeString()}</td>
-                    <td>{item.event_type || item.action}</td>
-                    <td>{item.metadata?.terminalId || 'SYS'}</td>
-                    <td>{item.metadata?.reason || item.errorMessage || 'Audit log captured.'}</td>
-                  </tr>
+                <AnimatePresence>
+                {auditLogs.map((item, idx) => (
+                  <motion.tr 
+                    layout
+                    key={item._id || item.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: Math.min(idx * 0.05, 0.5) }}
+                  >
+                    <td style={{ opacity: 0.7 }}>{new Date(item.timestamp).toLocaleTimeString()}</td>
+                    <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: 'var(--surface-sunken)', fontSize: '0.75rem', fontWeight: 600 }}>{item.event_type || item.action}</span></td>
+                    <td style={{ fontFamily: 'monospace' }}>{item.metadata?.terminalId || 'SYS'}</td>
+                    <td style={{ fontSize: '0.9rem' }}>{item.metadata?.reason || item.errorMessage || 'Audit log captured.'}</td>
+                  </motion.tr>
                 ))}
+                </AnimatePresence>
               </tbody>
             </table>
-          </div>
+          </motion.div>
         ) : null}
 
         {tab === 'alerts' ? (
-          <div className="stack-list">
+          <motion.div 
+            key="alerts"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="stack-list"
+          >
             {alerts.length === 0 && (
-              <div className="surface-card empty-state">
-                <span className="empty-state__icon">🛡️</span>
-                <h3>System integrity confirmed</h3>
-                <p>No critical anomalies or fraud signals have been detected in the current audit window.</p>
+              <div className="surface-card empty-state" style={{ padding: '80px 40px', textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '24px' }}>🛡️</div>
+                <h3 style={{ marginBottom: '12px' }}>System integrity confirmed</h3>
+                <p style={{ color: 'var(--ink-soft)', maxWidth: '400px', margin: '0 auto' }}>No critical anomalies or fraud signals have been detected in the current audit window.</p>
               </div>
             )}
+            <StaggerContainer>
             {alerts.map((alert) => (
-              <article key={alert._id || alert.id} className="surface-card stack-list__item stack-list__item--alert" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div>
-                  <div className="detail-inline" style={{ marginBottom: '8px' }}>
-                    <strong>{alert.event_type || alert.action}</strong>
-                    <span>{alert.metadata?.severity || 'High'}</span>
-                    <span style={{ color: 'var(--ink-muted)', fontSize: '0.75rem' }}>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+              <StaggerItem key={alert._id || alert.id}>
+                <article className="surface-card stack-list__item stack-list__item--alert" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', marginBottom: '20px', borderLeft: '4px solid var(--danger)' }}>
+                  <div>
+                    <div className="detail-inline" style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <strong style={{ background: 'var(--danger-soft)', color: 'var(--danger)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.85rem' }}>{alert.event_type || alert.action}</strong>
+                      <span style={{ background: 'var(--surface-sunken)', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>{alert.metadata?.severity || 'High'}</span>
+                      <span style={{ color: 'var(--ink-muted)', fontSize: '0.75rem', marginLeft: 'auto' }}>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '1.05rem', lineHeight: 1.5 }}>{alert.metadata?.reason || alert.errorMessage || 'Anomaly detected in voting patterns.'}</p>
                   </div>
-                  <p style={{ margin: 0 }}>{alert.metadata?.reason || alert.errorMessage || 'Anomaly detected in voting patterns.'}</p>
-                </div>
-                <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--line-soft)', paddingTop: '12px' }}>
-                  <button type="button" className="button button--ghost">Investigate</button>
-                  <button type="button" className="button button--primary">Acknowledge</button>
-                  <button type="button" className="button button--ghost" style={{ color: 'var(--danger)', marginLeft: 'auto' }}>Escalate</button>
-                </div>
-              </article>
+                  <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--line-soft)', paddingTop: '20px' }}>
+                    <AnimatedButton className="button button--ghost" style={{ padding: '10px 20px' }}>Investigate</AnimatedButton>
+                    <AnimatedButton className="button button--primary" style={{ padding: '10px 24px' }}>Acknowledge</AnimatedButton>
+                    <AnimatedButton className="button button--ghost" style={{ color: 'var(--danger)', marginLeft: 'auto', padding: '10px 20px' }}>Escalate</AnimatedButton>
+                  </div>
+                </article>
+              </StaggerItem>
             ))}
-          </div>
+            </StaggerContainer>
+          </motion.div>
         ) : null}
 
         {tab === 'terminals' ? (
-          <div className="surface-card table-shell">
+          <motion.div 
+            key="terminals"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="surface-card table-shell"
+          >
             <table className="data-table">
               <thead>
                 <tr>
@@ -237,18 +300,29 @@ export default function ObserverDashBoard() {
                 </tr>
               </thead>
               <tbody>
-                {[...new Set(auditLogs.map(l => l.metadata?.terminalId).filter(Boolean))].map((tid) => (
-                  <tr key={tid}>
-                    <td>{tid}</td>
-                    <td>Online</td>
-                    <td>Active now</td>
+                {[...new Set(auditLogs.map(l => l.metadata?.terminalId).filter(Boolean))].map((tid, idx) => (
+                  <motion.tr 
+                    key={tid}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <td style={{ fontWeight: 600 }}>{tid}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }} />
+                        <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>Online</span>
+                      </div>
+                    </td>
+                    <td style={{ opacity: 0.7 }}>Active now</td>
                     <td>Institutional</td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </motion.div>
         ) : null}
+        </AnimatePresence>
       </div>
     </section>
   )

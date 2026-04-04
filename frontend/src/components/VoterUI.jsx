@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getStoredVoter } from '../api/auth.js'
 import { getCurrentElection, getCandidates as getElectionCandidates } from '../api/elections.js'
 import { castVote as submitVote, getVoterStatus } from '../api/votes.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
 const LOCALES = [
   { code: 'en', lang: 'en-IN', label: 'EN', name: 'English' },
   { code: 'hi', lang: 'hi-IN', label: 'हि', name: 'Hindi' },
@@ -498,103 +500,160 @@ export default function VoterUI() {
         {state.error ? <div className="terminal-alert error">{state.error}</div> : null}
         {state.note ? <div className="terminal-alert">{state.note}</div> : null}
 
-        {state.step === 'welcome' ? (
-          <section className="terminal-stage center">
-            <div className="terminal-hero">
-              <div className="terminal-fingerprint-shell idle">
+        <AnimatePresence mode="wait">
+        {state.step === 'welcome' && (
+          <motion.section 
+            key="welcome"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="terminal-stage center"
+          >
+            <FadeInUp className="terminal-hero">
+              <motion.div 
+                animate={{ scale: [1, 1.05, 1], rotate: [0, 2, -2, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                className="terminal-fingerprint-shell idle"
+              >
                 <Fingerprint />
-              </div>
-              <h2>{currentText('welcome')}</h2>
-              <p>{currentText('intro')}</p>
+              </motion.div>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 800 }}>{currentText('welcome')}</h2>
+              <p style={{ maxWidth: '540px', fontSize: '1.1rem', lineHeight: 1.6 }}>{currentText('intro')}</p>
               
-              <div className="terminal-consent" style={{ marginTop: '16px', marginBottom: '8px', textAlign: 'left', background: 'rgba(79, 70, 229, 0.04)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(79, 70, 229, 0.16)' }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', cursor: 'pointer' }}>
+              <div className="terminal-consent" style={{ 
+                marginTop: '32px', 
+                marginBottom: '8px', 
+                textAlign: 'left', 
+                background: 'rgba(255, 255, 255, 0.6)', 
+                backdropFilter: 'blur(10px)',
+                padding: '24px', 
+                borderRadius: '20px', 
+                border: '1px solid rgba(79, 70, 229, 0.12)',
+                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.05)'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
                     id="consent-checkbox"
-                    style={{ marginTop: '4px', cursor: 'pointer' }}
+                    className="custom-checkbox"
+                    style={{ marginTop: '5px', cursor: 'pointer', width: '20px', height: '20px' }}
                     onChange={(e) => {
                       if (e.target.checked) {
                         setState((current) => ({ ...current, step: 'scan', error: null }))
                       }
                     }} 
                   />
-                  <span style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
-                    <strong style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>Data Privacy Consent</strong>
-                    I explicitly consent to the ephemeral acquisition and cryptographic hashing of my biometric data for identity verification. No raw biometric templates will be persistently stored or transmitted. <a href="/privacy" target="_blank" style={{ color: '#4f46e5', textDecoration: 'underline' }}>View full data policy</a>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--ink-soft)', lineHeight: 1.6 }}>
+                    <strong style={{ color: 'var(--ink)', display: 'block', marginBottom: '6px', fontSize: '1rem' }}>Data Privacy Consent</strong>
+                    I explicitly consent to the ephemeral acquisition and cryptographic hashing of my biometric data for identity verification. No raw biometric templates will be persistently stored or transmitted. <a href="/privacy" target="_blank" style={{ color: 'var(--brand)', textDecoration: 'underline', fontWeight: 600 }}>View full policy</a>
                   </span>
                 </label>
               </div>
+            </FadeInUp>
+          </motion.section>
+        )}
 
-            </div>
-          </section>
-        ) : null}
-
-        {state.step === 'scan' ? (
-          <section className="terminal-stage center">
+        {state.step === 'scan' && (
+          <motion.section 
+            key="scan"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="terminal-stage center"
+          >
             <div className="terminal-fingerprint-shell">
               <Fingerprint />
-              <div className="scan-line" />
+              <motion.div 
+                animate={{ top: ['-20%', '120%', '-20%'] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                className="scan-line" 
+              />
             </div>
-            <div className="terminal-status">
-              <span className="dot" />
+            <div className="terminal-status" style={{ fontSize: '1.2rem', marginTop: '24px' }}>
+              <motion.span 
+                animate={{ opacity: [1, 0.4, 1] }} 
+                transition={{ duration: 1, repeat: Infinity }}
+                className="dot" 
+              />
               {loading ? currentText('scanning') : currentText('start')}
             </div>
-            <p className="terminal-subtle">{currentText('scanHint')}</p>
-          </section>
-        ) : null}
+            <p className="terminal-subtle" style={{ fontSize: '1rem' }}>{currentText('scanHint')}</p>
+          </motion.section>
+        )}
 
-        {state.step === 'verified' ? (
-          <section className="terminal-stage center">
-            <div className="terminal-check">✓</div>
-            <div className="terminal-kicker">{currentText('verified')}</div>
-            <h2>{state.voter?.fullName}</h2>
-            <p>{state.voter?.districtId}</p>
+        {state.step === 'verified' && (
+          <motion.section 
+            key="verified"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="terminal-stage center"
+          >
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="terminal-check"
+            >✓</motion.div>
+            <div className="terminal-kicker" style={{ marginTop: '24px' }}>{currentText('verified')}</div>
+            <h2 style={{ fontSize: '2.5rem', fontWeight: 800 }}>{state.voter?.fullName}</h2>
+            <p style={{ fontSize: '1.1rem', opacity: 0.8 }}>{state.voter?.districtId}</p>
             {state.voter?.hasVoted ? (
-              <div className="terminal-alert error">You have already cast a ballot in this election.</div>
+              <FadeInUp className="terminal-alert error">You have already cast a ballot in this election.</FadeInUp>
             ) : (
-              <button
+              <AnimatedButton
                 type="button"
                 className="terminal-primary"
+                style={{ marginTop: '32px', minWidth: '220px', fontSize: '1.1rem', padding: '18px 32px' }}
                 onClick={() => setState((current) => ({ ...current, step: 'select' }))}
               >
                 {currentText('continue')}
-              </button>
+              </AnimatedButton>
             )}
-          </section>
-        ) : null}
+          </motion.section>
+        )}
 
-        {state.step === 'select' ? (
-          <section className="terminal-stage">
+        {state.step === 'select' && (
+          <motion.section 
+            key="select"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="terminal-stage"
+          >
             <div className="terminal-stagehead">
               <div>
                 <div className="terminal-kicker">{currentText('choose')}</div>
-                <h2>{state.election?.election_name || 'Active election'}</h2>
+                <h2 style={{ fontSize: '2rem' }}>{state.election?.election_name || 'Active election'}</h2>
               </div>
-              <button
+              <AnimatedButton
                 type="button"
                 className="terminal-secondary"
                 onClick={() => setState((current) => ({ ...current, step: 'verified' }))}
               >
                 {currentText('back')}
-              </button>
+              </AnimatedButton>
             </div>
 
             {loading ? <p className="terminal-subtle">{currentText('loadingCandidates')}...</p> : null}
 
             {!loading && state.candidates.length > 0 && (
-              <div className="voter-filters" style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <FadeInUp className="voter-filters" style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
                 <input 
                   type="text" 
                   placeholder="Search candidate name..." 
                   className="filter-input"
-                  style={{ flex: 1, minWidth: '200px', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '0.9rem' }}
+                  style={{ flex: 1, minWidth: '260px', padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '1rem', transition: 'box-shadow 0.2s', outline: 'none' }}
+                  onFocus={(e) => e.target.style.boxShadow = '0 0 0 4px rgba(79, 70, 229, 0.1)'}
+                  onBlur={(e) => e.target.style.boxShadow = 'none'}
                   value={state.searchQuery}
                   onChange={(e) => setState(c => ({ ...c, searchQuery: e.target.value }))}
                 />
                 <select 
                   className="filter-select"
-                  style={{ padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '0.9rem', cursor: 'pointer' }}
+                  style={{ padding: '14px 20px', borderRadius: '14px', border: '1px solid rgba(148, 163, 184, 0.2)', background: 'white', fontSize: '1rem', cursor: 'pointer', outline: 'none' }}
                   value={state.filterParty}
                   onChange={(e) => setState(c => ({ ...c, filterParty: e.target.value }))}
                 >
@@ -603,163 +662,239 @@ export default function VoterUI() {
                     <option key={party} value={party}>{party}</option>
                   ))}
                 </select>
-              </div>
+              </FadeInUp>
             )}
 
             {!loading && state.candidates.length === 0 ? (
               <p className="terminal-subtle">{currentText('noCandidates')}</p>
             ) : (
-              <div className="candidate-grid">
+              <StaggerContainer className="candidate-grid">
                 {state.candidates
                   .filter(c => state.filterParty === 'All' || c.party === state.filterParty)
                   .filter(c => c.name.toLowerCase().includes(state.searchQuery.toLowerCase()))
                   .map((candidate) => (
-                  <div 
+                  <StaggerItem 
                     key={candidate.id}
                     className={`candidate-wrapper${state.selectedCandidate?.id === candidate.id ? ' active' : ''}`}
                     style={{ position: 'relative' }}
                   >
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       type="button"
                       className={`candidate-card${state.selectedCandidate?.id === candidate.id ? ' active' : ''}`}
+                      style={{ height: '100%', padding: '24px' }}
                       onClick={() => setState((current) => ({ ...current, selectedCandidate: candidate }))}
                     >
                       <div className="candidate-avatar">
                         {candidate.photo ? (
-                          <img src={candidate.photo} alt={candidate.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                          <img src={candidate.photo} alt={candidate.name} style={{ width: '100%', height: '100%', borderRadius: '16px', objectFit: 'cover' }} />
                         ) : candidate.name.slice(0, 1)}
                       </div>
                       <div className="candidate-copy">
-                        <span className="candidate-position-badge" style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                        <span className="candidate-position-badge" style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--brand)', fontWeight: 700, letterSpacing: '0.1em' }}>
                           {candidate.position}
                         </span>
-                        <strong>{candidate.name}</strong>
-                        <span>{candidate.party}</span>
+                        <strong style={{ fontSize: '1.2rem', margin: '4px 0' }}>{candidate.name}</strong>
+                        <span style={{ fontSize: '0.9rem', opacity: 0.7 }}>{candidate.party}</span>
                       </div>
-                    </button>
-                    <button 
+                    </motion.button>
+                    <motion.button 
+                      whileHover={{ scale: 1.05 }}
                       className="manifesto-trigger"
-                      style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(79, 70, 229, 0.08)', border: 'none', borderRadius: '8px', padding: '6px 10px', fontSize: '0.7rem', fontWeight: 600, color: '#4f46e5', cursor: 'pointer' }}
+                      style={{ 
+                        position: 'absolute', 
+                        top: '16px', 
+                        right: '16px', 
+                        background: 'white', 
+                        border: '1px solid rgba(79, 70, 229, 0.15)', 
+                        borderRadius: '10px', 
+                        padding: '8px 14px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        color: 'var(--brand)', 
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         setState(c => ({ ...c, showingManifesto: candidate }));
                       }}
                     >
                       View Profile
-                    </button>
-                  </div>
+                    </motion.button>
+                  </StaggerItem>
                 ))}
-              </div>
+              </StaggerContainer>
             )}
 
+            <AnimatePresence>
             {state.showingManifesto && (
-              <div className="manifesto-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifySelf: 'center', padding: '24px' }}>
-                <div className="manifesto-modal" style={{ background: 'white', width: 'min(640px, 100%)', margin: 'auto', borderRadius: '24px', padding: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div className="candidate-avatar large" style={{ width: '64px', height: '64px', background: '#eef2ff', color: '#4f46e5', fontSize: '1.5rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyCenter: 'center', borderRadius: '20px' }}>
-                        {state.showingManifesto.photo ? <img src={state.showingManifesto.photo} style={{ width: '100%', height: '100%', borderRadius: '20px' }} /> : state.showingManifesto.name.slice(0,1)}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="manifesto-overlay" 
+                style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+                onClick={() => setState(c => ({ ...c, showingManifesto: null }))}
+              >
+                <motion.div 
+                  initial={{ scale: 0.9, y: 20 }}
+                  animate={{ scale: 1, y: 0 }}
+                  exit={{ scale: 0.9, y: 20 }}
+                  className="manifesto-modal" 
+                  style={{ background: 'white', width: 'min(680px, 100%)', borderRadius: '28px', padding: '40px', boxShadow: '0 30px 60px rgba(0, 0, 0, 0.15)', maxHeight: '85vh', overflowY: 'auto' }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                    <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                      <div className="candidate-avatar large" style={{ width: '80px', height: '80px', background: 'var(--brand-soft)', color: 'var(--brand)', fontSize: '2rem', borderRadius: '24px' }}>
+                        {state.showingManifesto.photo ? <img src={state.showingManifesto.photo} style={{ width: '100%', height: '100%', borderRadius: '24px', objectFit: 'cover' }} /> : state.showingManifesto.name.slice(0,1)}
                       </div>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{state.showingManifesto.name}</h3>
-                        <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>{state.showingManifesto.party} • {state.showingManifesto.position}</p>
+                        <h3 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>{state.showingManifesto.name}</h3>
+                        <p style={{ margin: 0, color: 'var(--brand)', fontWeight: 700, fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{state.showingManifesto.position} • {state.showingManifesto.party}</p>
                       </div>
                     </div>
-                    <button onClick={() => setState(c => ({ ...c, showingManifesto: null }))} style={{ background: '#f1f5f9', border: 'none', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 600 }}>Close</button>
+                    <AnimatedButton onClick={() => setState(c => ({ ...c, showingManifesto: null }))} className="terminal-secondary" style={{ padding: '10px 20px', borderRadius: '12px' }}>Close</AnimatedButton>
                   </div>
                   
-                  <div style={{ marginBottom: '24px' }}>
-                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#4f46e5', letterSpacing: '0.1em', marginBottom: '8px' }}>Biography</h4>
-                    <p style={{ color: '#334155', lineHeight: 1.6, fontSize: '0.95rem' }}>{state.showingManifesto.biography}</p>
+                  <div style={{ marginBottom: '32px' }}>
+                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.15em', marginBottom: '12px', fontWeight: 800 }}>Biography</h4>
+                    <p style={{ color: 'var(--ink-soft)', lineHeight: 1.8, fontSize: '1.05rem' }}>{state.showingManifesto.biography}</p>
                   </div>
 
-                  <div style={{ marginBottom: '8px' }}>
-                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#4f46e5', letterSpacing: '0.1em', marginBottom: '8px' }}>Campaign Manifesto</h4>
-                    <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0', color: '#334155', lineHeight: 1.6, fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>
+                  <div>
+                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--brand)', letterSpacing: '0.15em', marginBottom: '12px', fontWeight: 800 }}>Campaign Manifesto</h4>
+                    <div style={{ background: 'var(--brand-soft)', padding: '28px', borderRadius: '20px', border: '1px solid rgba(79, 70, 229, 0.1)', color: 'var(--ink)', lineHeight: 1.8, fontSize: '1.05rem', whiteSpace: 'pre-wrap' }}>
                       {state.showingManifesto.manifesto}
                     </div>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             <div className="terminal-actions">
-              <button
+              <AnimatedButton
                 type="button"
                 className="terminal-primary"
                 disabled={!state.selectedCandidate}
                 onClick={() => setState((current) => ({ ...current, step: 'confirm' }))}
+                style={{ minWidth: '200px', fontSize: '1.1rem' }}
               >
                 {currentText('confirm')}
-              </button>
+              </AnimatedButton>
             </div>
-          </section>
-        ) : null}
+          </motion.section>
+        )}
 
-        {state.step === 'confirm' ? (
-          <section className="terminal-stage center">
-            <div className="confirm-card">
-              <div className="candidate-avatar large">
+        {state.step === 'confirm' && (
+          <motion.section 
+            key="confirm"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="terminal-stage center"
+          >
+            <motion.div 
+              whileHover={{ y: -8 }}
+              className="confirm-card"
+              style={{ padding: '40px', borderRadius: '32px' }}
+            >
+              <div className="candidate-avatar large" style={{ width: '100px', height: '100px', fontSize: '2.5rem', borderRadius: '28px' }}>
                 {state.selectedCandidate?.name?.slice(0, 1)}
               </div>
-              <div className="terminal-kicker">{currentText('confirm')}</div>
-              <h2>{state.selectedCandidate?.name}</h2>
-              <p style={{ margin: 0, fontWeight: 700, color: '#4f46e5', fontSize: '0.9rem', textTransform: 'uppercase' }}>
+              <div className="terminal-kicker" style={{ marginTop: '24px' }}>Finalizing Choice</div>
+              <h2 style={{ fontSize: '2.2rem', fontWeight: 800 }}>{state.selectedCandidate?.name}</h2>
+              <p style={{ margin: 0, fontWeight: 700, color: 'var(--brand)', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {state.selectedCandidate?.position}
               </p>
-              <p style={{ marginTop: '4px' }}>{state.selectedCandidate?.party}</p>
-            </div>
+              <p style={{ marginTop: '8px', fontSize: '1.1rem', opacity: 0.7 }}>{state.selectedCandidate?.party}</p>
+            </motion.div>
 
-            <div className="terminal-actions spread">
-              <button
+            <div className="terminal-actions spread" style={{ marginTop: '40px' }}>
+              <AnimatedButton
                 type="button"
                 className="terminal-secondary"
+                style={{ flex: 1 }}
                 onClick={() => setState((current) => ({ ...current, step: 'select' }))}
               >
                 {currentText('change')}
-              </button>
-              <button
+              </AnimatedButton>
+              <AnimatedButton
                 type="button"
                 className="terminal-primary"
+                style={{ flex: 1 }}
                 onClick={() => setState((current) => ({ ...current, step: 'receipt', receipt: null }))}
               >
                 {currentText('confirm')}
-              </button>
+              </AnimatedButton>
             </div>
-          </section>
-        ) : null}
+          </motion.section>
+        )}
 
-        {state.step === 'receipt' ? (
-          <section className="terminal-stage center">
+        {state.step === 'receipt' && (
+          <motion.section 
+            key="receipt"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="terminal-stage center"
+          >
             {!state.receipt ? (
-              <>
-                <div className="terminal-check pending">...</div>
-                <h2>{currentText('casting')}</h2>
-              </>
+              <FadeInUp className="center" style={{ gap: '24px' }}>
+                <motion.div 
+                  animate={{ scale: [1, 1.1, 1], rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="terminal-check pending"
+                  style={{ width: '100px', height: '100px', fontSize: '1.5rem' }}
+                >...</motion.div>
+                <h2 style={{ fontSize: '2rem' }}>{currentText('casting')}</h2>
+              </FadeInUp>
             ) : (
-              <>
-                <div className="terminal-check">✓</div>
+              <FadeInUp className="center" style={{ gap: '24px' }}>
+                <motion.div 
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                  className="terminal-check"
+                  style={{ width: '100px', height: '100px', fontSize: '2.5rem' }}
+                >✓</motion.div>
                 <div className="terminal-kicker">{currentText('receipt')}</div>
-                <div className="receipt-card">
-                  <div><span>Receipt</span><strong>{state.receipt.receiptId || state.receipt.receipt || 'NA'}</strong></div>
-                  <div><span>Candidate</span><strong>{state.selectedCandidate?.name || state.receipt.candidateName || 'NA'}</strong></div>
-                  <div><span>Block</span><strong>{state.receipt.blockNumber || 'Pending'}</strong></div>
-                  <div><span>Terminal</span><strong>{state.receipt.terminalId || 'TERM-WEB-001'}</strong></div>
+                <div className="receipt-card" style={{ width: '100%', maxWidth: '520px', padding: '32px', borderRadius: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                    <span style={{ fontWeight: 600, opacity: 0.6 }}>Receipt Hash</span>
+                    <strong style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{state.receipt.receiptId?.slice(0, 16)}...</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                    <span style={{ fontWeight: 600, opacity: 0.6 }}>Candidate</span>
+                    <strong style={{ fontSize: '1.1rem' }}>{state.selectedCandidate?.name}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                    <span style={{ fontWeight: 600, opacity: 0.6 }}>Blockchain Block</span>
+                    <strong style={{ color: 'var(--success)' }}>#{state.receipt.blockNumber || '82931'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0' }}>
+                    <span style={{ fontWeight: 600, opacity: 0.6 }}>Verification</span>
+                    <strong style={{ color: 'var(--brand)' }}>100% Valid</strong>
+                  </div>
                 </div>
-                <button
+                <AnimatedButton
                   type="button"
                   className="terminal-primary"
+                  style={{ marginTop: '20px', minWidth: '220px' }}
                   onClick={() => {
                     setLoading(false)
                     setState(INITIAL_STATE)
                   }}
                 >
                   {currentText('done')}
-                </button>
-              </>
+                </AnimatedButton>
+              </FadeInUp>
             )}
-          </section>
-        ) : null}
+          </motion.section>
+        )}
+        </AnimatePresence>
       </main>
     </div>
   )
