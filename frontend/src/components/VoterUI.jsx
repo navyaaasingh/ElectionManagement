@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { biometricLogin } from '../api/auth.js'
+import { getStoredVoter } from '../api/auth.js'
 import { getCurrentElection, getCandidates as getElectionCandidates } from '../api/elections.js'
-import { castVote as submitVote } from '../api/votes.js'
+import { castVote as submitVote, getVoterStatus } from '../api/votes.js'
 const LOCALES = [
   { code: 'en', lang: 'en-IN', label: 'EN', name: 'English' },
   { code: 'hi', lang: 'hi-IN', label: 'हि', name: 'Hindi' },
@@ -308,25 +308,44 @@ export default function VoterUI() {
       setState((current) => ({ ...current, error: null, note: null }))
 
       try {
-        const response = await biometricLogin({
-          biometricTemplate: 'fingerprint-scan-active-terminal',
-          terminalId: 'TERM-WEB-001',
-        })
+        const storedVoter = getStoredVoter()
+        if (!storedVoter) throw new Error('No user session found. Please log in.')
+
+        const voterId = storedVoter.voterId || storedVoter.voter_id || storedVoter.id;
+        
+        // Eagerly fetch election to check if voter has already voted
+        const response = await getCurrentElection()
+        const election = response.election || response
+        
+        let hasVoted = false;
+        if (election?.election_id) {
+           try {
+             const statusRes = await getVoterStatus(voterId, election.election_id)
+             hasVoted = statusRes.hasVoted
+           } catch { /* if failure, assume false for now and backend will block it if true */ }
+        }
 
         if (cancelled) return
-        const voter = normalizeVoter(response?.voter)
+        
+        const voterData = {
+           ...storedVoter,
+           voterId: voterId,
+           hasVoted: hasVoted
+        }
+
+        const voter = normalizeVoter(voterData)
         setState((current) => ({
           ...current,
           voter,
+          election,
           step: 'verified',
         }))
       } catch (error) {
         if (cancelled) return
         setState((current) => ({
           ...current,
-          error: `Identity verification failed: ${error.message || 'The biometric sensor did not respond.'}`,
+          error: `Identity verification failed: ${error.message || 'The session timed out.'}`,
           note: error.status === 401 ? 'Voter not found in the institutional record.' : 'Connection to verification service interrupted.',
-          // Keep demo fallback optional/explicit if needed, but for "Complete Wiring" we show errors
         }))
       } finally {
         if (!cancelled) setLoading(false)
@@ -350,11 +369,10 @@ export default function VoterUI() {
       setState((current) => ({ ...current, error: null }))
 
       try {
-        // Fetch current active election
-        const response = await getCurrentElection()
+        // Fetch current active election (use cached if available from scan step)
+        const election = state.election || (await getCurrentElection()).election || (await getCurrentElection())
         if (cancelled) return
 
-        const election = response.election || response
         if (!election?.election_id) {
           throw new Error('No active election found for your district.')
         }

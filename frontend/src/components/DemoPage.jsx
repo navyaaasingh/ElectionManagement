@@ -1,5 +1,14 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  FadeInUp, 
+  StaggerContainer, 
+  StaggerItem, 
+  AnimatedCounter, 
+  AnimatedButton, 
+  SlideInHorizontal 
+} from './AnimationWrapper.jsx'
 
 // --- MOCK DATA ---
 const TURNOUT_DATA = [
@@ -207,26 +216,28 @@ function DepartmentDonut() {
         </div>
       </div>
 
-      <div style={{ flex: 1, minWidth: '200px' }}>
+      <StaggerContainer className="dept-list-container" style={{ flex: 1, minWidth: '200px' }}>
         {DEPT_DATA.map((d, i) => (
-          <div 
-            key={d.name} 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '12px', 
-              margin: '8px 0', 
-              transition: 'all 0.2s ease',
-              opacity: hoveredIndex === null || hoveredIndex === i ? 1 : 0.5,
-              transform: hoveredIndex === i ? 'translateX(8px)' : 'translateX(0)'
-            }}
-          >
-            <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: d.color }} />
-            <span style={{ fontSize: '0.9rem', flex: 1, fontWeight: 500 }}>{d.name}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--ink-soft)' }}>{d.value}%</span>
-          </div>
+          <StaggerItem key={d.name} y={10}>
+            <motion.article 
+              whileHover={{ x: 8, transition: { duration: 0.2 } }}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px', 
+                margin: '8px 0', 
+                opacity: hoveredIndex === null || hoveredIndex === i ? 1 : 0.5,
+              }}
+            >
+              <div style={{ width: '12px', height: '12px', borderRadius: '4px', background: d.color }} />
+              <span style={{ fontSize: '0.9rem', flex: 1, fontWeight: 500 }}>{d.name}</span>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--ink-soft)' }}>
+                <AnimatedCounter value={d.value} suffix="%" />
+              </span>
+            </motion.article>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
     </div>
   )
 }
@@ -252,31 +263,43 @@ export default function DemoPage() {
       </header>
 
       {/* Hero Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-         <div className="surface-card" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
-            <span className="section-kicker">Total Participation</span>
-            <div style={{ fontSize: '2.4rem', fontWeight: 800, margin: '8px 0' }}>18,402</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 600 }}>+12% vs last year</div>
-            <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', opacity: 0.1, transform: 'scale(2)' }}>
-               <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            </div>
-         </div>
-         <div className="surface-card" style={{ padding: '24px' }}>
-            <span className="section-kicker">Integrity Score</span>
-            <div style={{ fontSize: '2.4rem', fontWeight: 800, margin: '8px 0' }}>100/100</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Zero anomalies detected</div>
-         </div>
-         <div className="surface-card" style={{ padding: '24px' }}>
-            <span className="section-kicker">Avg. Voting Time</span>
-            <div style={{ fontSize: '2.4rem', fontWeight: 800, margin: '8px 0' }}>1m 42s</div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
-         </div>
-         <div className="surface-card" style={{ padding: '24px', background: 'var(--brand)', color: 'white' }}>
-            <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
-            <div style={{ fontSize: '2rem', fontWeight: 800, margin: '8px 0' }}>SLA Tier 1</div>
-            <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>
-         </div>
-      </div>
+      <StaggerContainer className="hero-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
+         <StaggerItem>
+            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', position: 'relative', overflow: 'hidden', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span className="section-kicker">Total Participation</span>
+              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+                <AnimatedCounter value={18402} />
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>+12% vs last year</div>
+              <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', opacity: 0.1, transform: 'scale(1.5)' }}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+            </motion.div>
+         </StaggerItem>
+         <StaggerItem>
+            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span className="section-kicker">Integrity Score</span>
+              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+                <AnimatedCounter value={100} suffix="/100" />
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Zero anomalies detected</div>
+            </motion.div>
+         </StaggerItem>
+         <StaggerItem>
+            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span className="section-kicker">Avg. Voting Time</span>
+              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
+            </motion.div>
+         </StaggerItem>
+         <StaggerItem>
+            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', background: 'var(--brand)', color: 'white', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
+              <div style={{ fontSize: '2.2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
+              <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>
+            </motion.div>
+         </StaggerItem>
+      </StaggerContainer>
 
       {/* Chart Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px', flexWrap: 'wrap' }}>

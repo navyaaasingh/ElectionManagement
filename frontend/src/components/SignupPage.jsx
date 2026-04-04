@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { voterSignup } from '../api/auth.js'
+import { registerVoter } from '../api/auth.js'
 
 const STEPS = [
   { key: 'student', label: 'Student Identity', description: 'Enter your institutional credentials' },
@@ -51,7 +51,7 @@ export default function SignupPage() {
   async function handleFinish() {
     setStatus('loading')
     try {
-      const response = await voterSignup({
+      const response = await registerVoter({
         rollNumber: form.rollNumber,
         email: form.email,
         password: form.password,

@@ -7,19 +7,21 @@
   --surface-3: #f1ede4;
   --line-soft: rgba(24, 23, 18, 0.08);
   --line-strong: rgba(24, 23, 18, 0.16);
-  --ink: var(--em-text);
-  --ink-muted: var(--em-text-muted);
-  --ink-soft: var(--em-text-soft);
+  --ink: var(--em-text, #181712);
+  --ink-muted: var(--em-text-muted, #403e38);
+  --ink-soft: var(--em-text-soft, #767266);
   --brand: #1a5c3a;
   --brand-strong: #184f32;
-  --brand-soft: var(--em-primary-soft);
+  --brand-soft: rgba(26, 92, 58, 0.1);
   --accent: #d4820a;
   --success: #2d6a4f;
   --danger: #c0392b;
-  --radius-panel: 20px;
-  --radius-control: 8px;
-  --radius-tight: 10px;
-  --content-width: min(1240px, calc(100vw - 40px));
+  --radius-panel: 24px;
+  --radius-control: 12px;
+  --radius-tight: 8px;
+  --content-width: min(1200px, calc(100vw - 48px));
+  --glass-bg: rgba(253, 252, 249, 0.84);
+  --shadow-premium: 0 12px 48px -12px rgba(24, 23, 18, 0.12);
 }
 
 :root[data-theme='dark'] {
@@ -193,12 +195,14 @@ a {
 
 .brand-copy__eyebrow,
 .section-kicker {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   line-height: 1.1;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
-  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--brand);
+  font-weight: 700;
   text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
 }
 
 .brand-copy__name {
@@ -366,8 +370,9 @@ a {
   background: var(--surface-1);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-panel);
-  box-shadow: var(--em-shadow-md);
-  padding: 34px;
+  box-shadow: var(--shadow-premium);
+  padding: 48px;
+  background: radial-gradient(circle at top right, rgba(26, 92, 58, 0.03), transparent 60%);
 }
 
 .public-hero h1 {

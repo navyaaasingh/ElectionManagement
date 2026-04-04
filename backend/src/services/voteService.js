@@ -4,6 +4,7 @@
  */
 
 const { Voter, Election, Candidate, VotingRecord } = require('../models/index.js');
+const { sequelize } = require('../db/index.js');
 const fabricService  = require('./fabricService.js');
 const zkpService     = require('./zkpService.js');
 const logger         = require('../utils/logger.js');
@@ -104,20 +105,36 @@ class VoteService {
             }
 
             // 7. Record in database (only fields defined in VotingRecord model)
-            await VotingRecord.create({
-                voter_id:          voterId,
-                election_id:       electionId,
-                terminal_id:       terminalId,
-                verification_hash: verificationHash,
-                blockchain_tx_id:  blockchainTxId,
-                vote_timestamp:    new Date(timestamp || Date.now()),
-            });
+            // Use a transaction to ensure vote recording, tallying, and voter lock are atomic
+            const t = await sequelize.transaction();
+            try {
+                await VotingRecord.create({
+                    voter_id:          voterId,
+                    election_id:       electionId,
+                    terminal_id:       terminalId,
+                    verification_hash: verificationHash,
+                    blockchain_tx_id:  blockchainTxId,
+                    vote_timestamp:    new Date(timestamp || Date.now()),
+                }, { transaction: t });
 
-            // 8. Mark voter as having voted
-            await Voter.update(
-                { has_voted: true },
-                { where: { voter_id: voterId } }
-            );
+                // 8. Mark voter as having voted
+                await Voter.update(
+                    { has_voted: true },
+                    { where: { voter_id: voterId }, transaction: t }
+                );
+
+                // Increment candidate votes
+                await Candidate.increment('votes_received', {
+                    by: 1,
+                    where: { candidate_id: candidateId },
+                    transaction: t
+                });
+
+                await t.commit();
+            } catch (dbError) {
+                await t.rollback();
+                throw new Error('Database transaction failed during vote casting: ' + dbError.message);
+            }
 
             // 9. Generate receipt
             const receipt = this.generateReceipt({

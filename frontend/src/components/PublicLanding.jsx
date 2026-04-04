@@ -1,6 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getStoredAdmin, getStoredVoter } from '../api/auth.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  FadeInUp, 
+  StaggerContainer, 
+  StaggerItem, 
+  AnimatedCounter, 
+  AnimatedButton, 
+  SlideInHorizontal 
+} from './AnimationWrapper.jsx'
 
 const TRUST_POINTS = [
   'Biometric voter verification',
@@ -26,7 +35,12 @@ export default function PublicLanding() {
 
   return (
     <section className="public-page">
-      <header className="public-topbar">
+      <motion.header 
+        initial={{ y: -60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="public-topbar"
+      >
         <button type="button" className="brand-lockup" onClick={() => navigate('/')}>
           <span className="brand-mark" aria-hidden="true">CV</span>
           <span className="brand-copy">
@@ -40,48 +54,69 @@ export default function PublicLanding() {
             Verify results
           </button>
           {!user ? (
-            <button type="button" className="button button--ghost" onClick={() => navigate('/login')}>
+            <AnimatedButton className="button button--ghost" onClick={() => navigate('/login')}>
               Sign in
-            </button>
+            </AnimatedButton>
           ) : (
-            <button type="button" className="button button--primary" onClick={() => navigate('/app')}>
+            <AnimatedButton className="button button--primary" onClick={() => navigate('/app')}>
               Return to workspace
-            </button>
+            </AnimatedButton>
           )}
         </div>
-      </header>
+      </motion.header>
 
       <div className="public-hero">
-        <p className="section-kicker">Secure digital elections for universities</p>
-        <h1>Your students deserve an election no one can rig.</h1>
-        <p>
-          CampusVote runs biometric check-in, live fraud detection, and blockchain receipt verification — all in one platform. Set up in under a day. Used by 12+ universities. Every vote is independently verifiable.
-        </p>
+        <FadeInUp delay={0.1}>
+          <p className="section-kicker">Secure digital elections for universities</p>
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.8 }}
+          >
+            Your students deserve an election no one can rig.
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.8 }}
+          >
+            CampusVote runs biometric check-in, live fraud detection, and blockchain receipt verification — all in one platform. Set up in under a day. Used by 12+ universities. Every vote is independently verifiable.
+          </motion.p>
+        </FadeInUp>
 
-        <div className="public-hero__actions">
-          <button type="button" className="button button--primary" onClick={() => window.location.href='mailto:sales@campusvote.com?subject=Institutional Deploy Request'}>
-            Deploy at my university &rarr;
-          </button>
+        <StaggerContainer delay={0.6} className="public-hero__actions">
+          <StaggerItem>
+            <AnimatedButton className="button button--primary" onClick={() => window.location.href='mailto:sales@campusvote.com?subject=Institutional Deploy Request'}>
+              Deploy at my university &rarr;
+            </AnimatedButton>
+          </StaggerItem>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button type="button" className="button button--ghost" onClick={() => navigate('/app/observer')}>
-              See a live election in progress
-            </button>
-            <button type="button" className="button button--ghost" style={{ border: '2px solid var(--brand-soft)' }} onClick={() => navigate('/demo')}>
-              Explore Demo Experience
-            </button>
+            <StaggerItem>
+              <AnimatedButton className="button button--ghost" onClick={() => navigate('/app/observer')}>
+                See a live election in progress
+              </AnimatedButton>
+            </StaggerItem>
+            <StaggerItem>
+              <AnimatedButton className="button button--ghost" style={{ border: '2px solid var(--brand-soft)' }} onClick={() => navigate('/demo')}>
+                Explore Demo Experience
+              </AnimatedButton>
+            </StaggerItem>
           </div>
-        </div>
+        </StaggerContainer>
 
-        <div className="hero-social-proof">
+        <FadeInUp delay={0.9} className="hero-social-proof">
           <p>
             <em>&quot;2,341 ballots cast. 0 anomalies detected. Fraud monitoring: Healthy.&quot;</em>
             <br />
             &mdash; <strong>Northbridge University</strong>, Student Council Election 2026
           </p>
-        </div>
+        </FadeInUp>
 
-        <div className="public-hero__screenshot" style={{ marginTop: '32px' }}>
-          <div className="hero-mockup">
+        <FadeInUp delay={0.5} className="public-hero__screenshot" style={{ marginTop: '32px' }}>
+          <motion.div 
+            whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            className="hero-mockup"
+          >
              <div className="mockup-header">
                 <span className="mockup-dot" style={{ background: '#ff5f56' }} /><span className="mockup-dot" style={{ background: '#ffbd2e' }} /><span className="mockup-dot" style={{ background: '#27c93f' }} />
                 <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--ink-soft)', marginLeft: '12px' }}>Observer Desk • Live Fraud Monitoring</span>
@@ -91,124 +126,173 @@ export default function PublicLanding() {
                   <div style={{ border: '1px solid var(--line-soft)', padding: '16px', borderRadius: '12px', background: 'var(--surface-2)' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>ML Fraud Status</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                      <span className="status-dot"></span>
+                      <motion.span 
+                        animate={{ opacity: [0.4, 1, 0.4] }} 
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className="status-dot" 
+                      />
                       <strong style={{ fontSize: '1.2rem', color: 'var(--success)' }}>Healthy</strong>
                     </div>
                   </div>
                   <div style={{ border: '1px solid var(--line-soft)', padding: '16px', borderRadius: '12px', background: 'var(--surface-2)' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Vote Anomaly Rate</span>
-                    <strong style={{ display: 'block', fontSize: '1.4rem', marginTop: '8px' }}>0.00%</strong>
+                    <strong style={{ display: 'block', fontSize: '1.4rem', marginTop: '8px' }}>
+                      <AnimatedCounter value={0} suffix=".00%" />
+                    </strong>
                   </div>
                 </div>
                 <div style={{ height: '80px', background: 'repeating-linear-gradient(90deg, var(--line-soft) 0px, var(--line-soft) 1px, transparent 1px, transparent 40px)', border: '1px solid var(--line-soft)', borderRadius: '12px', position: 'relative', overflow: 'hidden' }}>
                   <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path d="M0,80 C20,80 30,70 50,75 C70,80 80,40 100,45 L100,100 L0,100 Z" fill="rgba(45, 106, 79, 0.15)" stroke="var(--success)" strokeWidth="2" />
+                    <motion.path 
+                      initial={{ pathLength: 0 }}
+                      whileInView={{ pathLength: 1 }}
+                      transition={{ duration: 2, ease: 'easeInOut' }}
+                      d="M0,80 C20,80 30,70 50,75 C70,80 80,40 100,45 L100,100 L0,100 Z" 
+                      fill="rgba(45, 106, 79, 0.15)" 
+                      stroke="var(--success)" 
+                      strokeWidth="2" 
+                    />
                   </svg>
                   <span style={{ position: 'absolute', top: '8px', left: '12px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--ink-soft)' }}>Voting Velocity (Votes/min)</span>
                 </div>
              </div>
-          </div>
-        </div>
+          </motion.div>
+        </FadeInUp>
       </div>
 
-      <div className="public-trust-strip">
-        <span className="trust-badge">SOC 2 Type II In Progress</span>
+      <StaggerContainer staggerChildren={0.05} className="public-trust-strip">
+        <StaggerItem y={10}>
+          <span className="trust-badge" style={{ background: 'var(--brand)', color: 'white', border: 'none' }}>SOC 2 Type II In Progress</span>
+        </StaggerItem>
         {TRUST_POINTS.map((point) => (
-          <span key={point}>{point}</span>
+          <StaggerItem key={point} y={10}>
+            <span>{point}</span>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
 
       <section id="platform-features" className="public-section">
         <div className="section-heading">
-          <p className="section-kicker">Why institutions switch</p>
-          <h2>A full election workflow with provable integrity.</h2>
+          <SlideInHorizontal direction="left">
+            <p className="section-kicker">Why institutions switch</p>
+            <h2>A full election workflow with provable integrity.</h2>
+          </SlideInHorizontal>
         </div>
-        <div className="card-grid">
-          <article className="product-card product-card--static">
-            <span className="product-card__label">Setup in one day</span>
-            <p>Create elections, map departments, and launch terminals with role-based controls.</p>
-          </article>
-          <article className="product-card product-card--static">
-            <span className="product-card__label">Fraud-aware operations</span>
-            <p>Observer desk tracks vote velocity, terminal health, and suspicious patterns in real time.</p>
-          </article>
-          <article className="product-card product-card--static">
-            <span className="product-card__label">Audit-ready closeout</span>
-            <p>Every receipt is verifiable and every critical event is anchored for post-election review.</p>
-          </article>
-        </div>
+        <StaggerContainer className="card-grid">
+          <StaggerItem>
+            <motion.article 
+              whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
+              className="product-card product-card--static"
+            >
+              <span className="product-card__label">Setup in one day</span>
+              <p>Create elections, map departments, and launch terminals with role-based controls.</p>
+            </motion.article>
+          </StaggerItem>
+          <StaggerItem>
+            <motion.article 
+              whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
+              className="product-card product-card--static"
+            >
+              <span className="product-card__label">Fraud-aware operations</span>
+              <p>Observer desk tracks vote velocity, terminal health, and suspicious patterns in real time.</p>
+            </motion.article>
+          </StaggerItem>
+          <StaggerItem>
+            <motion.article 
+              whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
+              className="product-card product-card--static"
+            >
+              <span className="product-card__label">Audit-ready closeout</span>
+              <p>Every receipt is verifiable and every critical event is anchored for post-election review.</p>
+            </motion.article>
+          </StaggerItem>
+        </StaggerContainer>
       </section>
 
       <section className="public-section">
         <div className="section-heading">
-          <p className="section-kicker">Institution results</p>
-          <h2>What campuses report after deployment.</h2>
+          <SlideInHorizontal direction="left">
+            <p className="section-kicker">Institution results</p>
+            <h2>What campuses report after deployment.</h2>
+          </SlideInHorizontal>
         </div>
-        <div className="card-grid">
+        <StaggerContainer className="card-grid">
           {SOCIAL_PROOF.map((item) => (
-            <article key={item.name} className="product-card product-card--static">
-              <span className="product-card__label">{item.name}</span>
-              <p>{item.outcome}</p>
-            </article>
+            <StaggerItem key={item.name}>
+              <motion.article 
+                whileHover={{ y: -5 }}
+                className="product-card product-card--static"
+              >
+                <span className="product-card__label" style={{ color: 'var(--brand)' }}>{item.name}</span>
+                <p>{item.outcome}</p>
+              </motion.article>
+            </StaggerItem>
           ))}
-        </div>
-        <div className="public-disclaimer">
+        </StaggerContainer>
+        <FadeInUp delay={0.4} className="public-disclaimer">
           * Representative institutional outcomes for platform capability illustration.
-        </div>
+        </FadeInUp>
       </section>
 
       <section className="public-section">
         <div className="section-heading">
-          <p className="section-kicker">Platform Comparison</p>
-          <h2>We don&apos;t just count votes. We secure them.</h2>
+          <SlideInHorizontal direction="left">
+            <p className="section-kicker">Platform Comparison</p>
+            <h2>We don&apos;t just count votes. We secure them.</h2>
+          </SlideInHorizontal>
         </div>
-        <div className="surface-card table-shell">
+        <FadeInUp className="surface-card table-shell">
           <table className="data-table">
             <thead>
-              <tr>
+              <motion.tr
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+              >
                 <th>Capability</th>
                 <th>CampusVote</th>
                 <th>Legacy Vendor A</th>
                 <th>Legacy Vendor B</th>
-              </tr>
+              </motion.tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><strong>Verification</strong></td>
-                <td>Biometric 2FA + SSO</td>
-                <td>SSO only</td>
-                <td>Email link</td>
-              </tr>
-              <tr>
-                <td><strong>Vote Record</strong></td>
-                <td>Immutable Blockchain</td>
-                <td>Standard Database</td>
-                <td>Standard Database</td>
-              </tr>
-              <tr>
-                <td><strong>Fraud Monitoring</strong></td>
-                <td>Real-time ML Engine</td>
-                <td>None</td>
-                <td>Post-election audit</td>
-              </tr>
-              <tr>
-                <td><strong>Public Receipt</strong></td>
-                <td>Cryptographic hash</td>
-                <td>None</td>
-                <td>None</td>
-              </tr>
-              <tr>
-                <td><strong>Setup Time</strong></td>
-                <td>Under 24 hours</td>
-                <td>2-4 weeks</td>
-                <td>1-3 weeks</td>
-              </tr>
-            </tbody>
+            <motion.tbody 
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
+              {[
+                ['Verification', 'Biometric 2FA + SSO', 'SSO only', 'Email link'],
+                ['Vote Record', 'Immutable Blockchain', 'Standard Database', 'Standard Database'],
+                ['Fraud Monitoring', 'Real-time ML Engine', 'None', 'Post-election audit'],
+                ['Public Receipt', 'Cryptographic hash', 'None', 'None'],
+                ['Setup Time', 'Under 24 hours', '2-4 weeks', '1-3 weeks']
+              ].map(([capability, cv, vA, vB]) => (
+                <motion.tr 
+                  key={capability}
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    visible: { opacity: 1, x: 0, transition: { duration: 0.3 } }
+                  }}
+                >
+                  <td><strong>{capability}</strong></td>
+                  <td style={{ color: 'var(--brand)', fontWeight: 700 }}>{cv}</td>
+                  <td>{vA}</td>
+                  <td>{vB}</td>
+                </motion.tr>
+              ))}
+            </motion.tbody>
           </table>
-        </div>
+        </FadeInUp>
       </section>
 
-      <footer className="public-footer">
+      <FadeInUp className="public-footer">
         <div className="public-footer__inner">
           <div>
             <strong>CampusVote</strong>
@@ -221,7 +305,7 @@ export default function PublicLanding() {
             <button type="button" className="footer-link" onClick={() => navigate('/pricing')}>Pricing</button>
           </div>
         </div>
-      </footer>
+      </FadeInUp>
     </section>
   )
 }

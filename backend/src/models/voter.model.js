@@ -68,21 +68,20 @@ const Voter = sequelize.define('voters', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
     },
+    registration_date: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+    },
+    status: {
+        type: DataTypes.ENUM('pending', 'active', 'suspended', 'deceased'),
+        defaultValue: 'pending',
+    },
     device_id: {
         type: DataTypes.STRING(255),
         allowNull: true,
         comment: 'Unique ID of the device used for registration/voting',
     },
 }, {
-    indexes: [
-        { fields: ['aadhar_number'] },
-        { fields: ['email'] },
-        { fields: ['biometric_hash'] },
-        { fields: ['district_id'] },
-        { fields: ['has_voted'] },
-        { fields: ['status'] },
-        { fields: ['device_id'] },
-    ],
     timestamps: true,
     tableName: 'voters',
 });

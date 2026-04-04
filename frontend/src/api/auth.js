@@ -3,7 +3,7 @@ import { api, setToken, clearToken } from './client.js';
 /**
  * Register a new voter via institutional signup.
  */
-export async function voterSignup(payload) {
+export async function registerVoter(payload) {
   return api.post('/api/v1/auth/signup-voter', payload);
 }
 

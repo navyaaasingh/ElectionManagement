@@ -143,10 +143,10 @@ router.get('/results/:electionId', async (req, res) => {
         res.json({
             election: election ? {
                 id: election.election_id,
-                name: election.election_name,
+                name: election.name,
                 type: election.election_type,
                 status: election.status,
-                totalVotesCast: election.total_votes_cast,
+                totalVotesCast: election.total_votes_cast || 0,
             } : null,
             blockchainResults: results,
             timestamp: new Date().toISOString(),

@@ -117,8 +117,8 @@ const initializeDatabases = async () => {
     
     if (process.env.NODE_ENV === 'development') {
         const models = require('../models/index.js');
-        // Synchronize all defined models with database (handles schema updates)
-        await sequelize.sync({ alter: true });
+        // Synchronize all defined models with database
+        await sequelize.sync();
         console.log('✅ SQLite database models synced');
         
         console.log('🚀 Starting MongoDB and Redis connections in background (dev mode)...');
