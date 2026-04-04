@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -9,6 +9,7 @@ import {
   AnimatedButton, 
   SlideInHorizontal 
 } from './AnimationWrapper.jsx'
+import { Moon, Sun, Menu, X } from 'lucide-react'
 
 // --- MOCK DATA ---
 const TURNOUT_DATA = [
@@ -71,7 +72,7 @@ function VoterTurnoutChart() {
   
   const getX = (i) => (i / (TURNOUT_DATA.length - 1)) * (width - 2 * padding) + padding
   const getY = (v) => height - padding - ((v - minVal) / (maxVal - minVal)) * (height - 2 * padding)
-
+  
   const points = TURNOUT_DATA.map((d, i) => `${getX(i)},${getY(d.value)}`).join(' ')
   const areaPath = `M ${getX(0)},${height - padding} ${points} L ${getX(TURNOUT_DATA.length - 1)},${height - padding} Z`
   const linePath = `M ${points}`
@@ -247,56 +248,112 @@ function DepartmentDonut() {
  */
 export default function DemoPage() {
   const navigate = useNavigate()
+  const [theme, setTheme] = useState(() => localStorage.getItem('campusvote-theme') || 'light')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('campusvote-theme', theme)
+  }, [theme])
 
   return (
-    <section className="portal-page" style={{ maxWidth: '1100px', margin: '0 auto', gap: '32px' }}>
-      {/* Header Area */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px' }}>
+    <section className="portal-page portal-page--demo" style={{ maxWidth: '1200px', margin: '0 auto', gap: '32px' }}>
+      {/* Global Header Consistency */}
+      <motion.header 
+        initial={{ y: -60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="public-topbar" 
+        style={{ position: 'relative', marginBottom: '40px', paddingInline: 0 }}
+      >
+        <button type="button" className="brand-lockup" onClick={() => navigate('/')}>
+          <span className="brand-mark" aria-hidden="true">CV</span>
+          <span className="brand-copy">
+            <span className="brand-copy__eyebrow">Institutional demo</span>
+            <span className="brand-copy__name">CampusVote</span>
+          </span>
+        </button>
+
+        <button 
+          className="mobile-menu-toggle" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-expanded={isMobileMenuOpen}
+          aria-label="Toggle navigation menu"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        <div className={`public-topbar__actions ${isMobileMenuOpen ? 'is-open' : ''}`}>
+          <div className="public-topbar__main-actions">
+            <button
+              type="button"
+              className="utility-toggle"
+              aria-label="Toggle theme"
+              onClick={() => {
+                setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+                setIsMobileMenuOpen(false);
+              }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', padding: 0, borderRadius: '12px' }}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <div className="v-divider" style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '0 4px' }} />
+            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
+              Sign in
+            </button>
+            <AnimatedButton className="button button--primary" onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}>
+              Live Hub
+            </AnimatedButton>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Page Content Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '24px', marginBottom: '32px' }}>
         <div className="section-heading">
           <p className="section-kicker">Simulation Center</p>
-          <h1 style={{ fontSize: '2.8rem' }}>Institutional High-Fidelity Demo</h1>
+          <h1 style={{ fontSize: 'clamp(2rem, 8vw, 3.5rem)' }}>Institutional High-Fidelity Demo</h1>
           <p style={{ maxWidth: '600px', fontSize: '1.1rem' }}>
             Experience the enterprise capabilities of CampusVote. This dashboard environment simulates a completed institutional election with fully verifiable datasets.
           </p>
         </div>
         <SecurityPulse />
-      </header>
+      </div>
 
       {/* Hero Stats */}
       <StaggerContainer className="hero-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', position: 'relative', overflow: 'hidden', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span className="section-kicker">Total Participation</span>
-              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
-                <AnimatedCounter value={18402} />
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>+12% vs last year</div>
-              <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', opacity: 0.1, transform: 'scale(1.5)' }}>
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              </div>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               <span className="section-kicker">Total Participation</span>
+               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+                 <AnimatedCounter value={18402} />
+               </div>
+               <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>+12% vs last year</div>
+               <div style={{ position: 'absolute', bottom: '-10px', right: '-10px', opacity: 0.1, transform: 'scale(1.5)' }}>
+                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+               </div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span className="section-kicker">Integrity Score</span>
-              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
-                <AnimatedCounter value={100} suffix="/100" />
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Zero anomalies detected</div>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               <span className="section-kicker">Integrity Score</span>
+               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+                 <AnimatedCounter value={100} suffix="/100" />
+               </div>
+               <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Zero anomalies detected</div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span className="section-kicker">Avg. Voting Time</span>
-              <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               <span className="section-kicker">Avg. Voting Time</span>
+               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
+               <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card" style={{ padding: '32px', background: 'var(--brand)', color: 'white', aspectRatio: '1/1', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
-              <div style={{ fontSize: '2.2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
-              <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', background: 'var(--brand)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
+               <div style={{ fontSize: '2.2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
+               <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>
             </motion.div>
          </StaggerItem>
       </StaggerContainer>

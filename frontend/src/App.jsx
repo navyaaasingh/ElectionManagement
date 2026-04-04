@@ -16,7 +16,7 @@ import SignupPage from './components/SignupPage.jsx'
 import DemoPage from './components/DemoPage.jsx'
 import NotFound from './components/NotFound.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Sun, Moon } from 'lucide-react'
 import { getStoredAdmin, getStoredVoter, logout } from './api/auth.js'
 import './index.css'
 const ROLE_TABS = [
@@ -106,7 +106,10 @@ function WorkspaceShell() {
                   key={tab.id}
                   type="button"
                   className={`role-tab${activeRole === tab.id ? ' is-active' : ''}`}
-                  onClick={() => navigate(tab.path)}
+                  onClick={() => {
+                    navigate(tab.path);
+                    setIsMobileMenuOpen(false);
+                  }}
                 >
                   {tab.label}
                 </button>
@@ -119,10 +122,11 @@ function WorkspaceShell() {
                 className="utility-toggle"
                 aria-label="Toggle theme"
                 onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', padding: 0, borderRadius: '12px' }}
               >
-                {theme === 'light' ? 'Dark mode' : 'Light mode'}
+                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
-              <div style={{ width: '1px', height: '20px', background: 'var(--line-strong)', margin: '0 8px' }} />
+              <div style={{ width: '1px', height: '20px', background: 'var(--line-strong)', margin: '0 4px' }} />
               <div 
                 className="user-chip" 
                 onClick={() => {
@@ -130,10 +134,15 @@ function WorkspaceShell() {
                   setUser(null)
                   navigate('/')
                 }}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', gap: '8px' }}
                 title="Click to sign out"
               >
-                {user ? (user.username || (user.fullName || user.voterId)) : 'Sign out'}
+                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--brand), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
+                  {user ? (user.username?.[0] || user.fullName?.[0] || 'U').toUpperCase() : '?'}
+                </div>
+                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user ? (user.username || user.fullName || user.voterId) : 'Sign out'}
+                </span>
               </div>
             </div>
           </div>

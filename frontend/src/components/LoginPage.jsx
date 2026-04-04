@@ -107,6 +107,7 @@ export default function LoginPage() {
 
   const TabButton = ({ id, label, active, onClick }) => (
     <button 
+      type="button"
       onClick={onClick}
       className={`tab-link ${active ? 'is-active' : ''}`}
       style={{
@@ -122,7 +123,7 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px',
+        gap: '4px',
         transition: 'all 0.2s ease'
       }}
     >
@@ -140,7 +141,7 @@ export default function LoginPage() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="surface-card" 
+        className="surface-card login-card" 
         style={{ padding: '0', overflow: 'hidden' }}
       >
         {/* Main Tabs: Voter / Admin */}
@@ -188,12 +189,12 @@ export default function LoginPage() {
               width: '50%', 
               height: '3px', 
               background: 'var(--brand)',
-              boxShadow: '0 -4px 12px rgba(79, 70, 229, 0.2)'
+              boxShadow: '0 -2px 10px rgba(79, 70, 229, 0.3)'
             }} 
           />
         </div>
 
-        <div style={{ padding: '40px' }}>
+        <div className="login-card__body" style={{ padding: 'clamp(1.5rem, 5vw, 2.5rem)' }}>
           <AnimatePresence mode="wait">
             {activeTab === 'voter' ? (
               <motion.div
@@ -204,9 +205,9 @@ export default function LoginPage() {
                 transition={{ duration: 0.2 }}
               >
                 {/* Voter Method Selection */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '40px', padding: '6px', background: 'var(--surface-sunken)', borderRadius: '14px' }}>
+                <div className="login-method-tabs" style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-6)', padding: '4px', background: 'var(--surface-sunken)', borderRadius: '14px' }}>
                   <TabButton 
-                    id="email" label="ID & Pass" active={voterMethod === 'email'} 
+                    id="email" label="ID" active={voterMethod === 'email'} 
                     onClick={() => setVoterMethod('email')} 
                   />
                   <TabButton 
@@ -220,96 +221,78 @@ export default function LoginPage() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                {voterMethod === 'email' && (
                   <motion.form 
-                    key="email-form"
+                    key={`form-${voterMethod}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    onSubmit={handleEmailLogin}
+                    onSubmit={voterMethod === 'email' ? handleEmailLogin : voterMethod === 'aadhaar' ? handleAadhaarVerify : handlePasskeyLogin}
                   >
-                    <div className="field-group" style={{ marginBottom: '24px' }}>
-                      <label className="field-label">Institutional Email</label>
-                      <input 
-                        className="field-input" type="email" 
-                        value={emailForm.email}
-                        onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
-                        placeholder="student@university.edu" required
-                        style={{ padding: '14px 18px', borderRadius: '12px' }}
-                      />
-                    </div>
-                    <div className="field-group" style={{ marginBottom: '28px' }}>
-                      <label className="field-label">Password</label>
-                      <input 
-                        className="field-input" type="password" 
-                        value={emailForm.password}
-                        onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
-                        placeholder="••••••••" required
-                        style={{ padding: '14px 18px', borderRadius: '12px' }}
-                      />
-                    </div>
-                    <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
-                      {status === 'loading' ? 'Authenticating...' : 'Sign In'}
-                    </AnimatedButton>
-                  </motion.form>
-                )}
+                    {voterMethod === 'email' && (
+                      <div key="email-fields">
+                        <div className="field-group" style={{ marginBottom: '24px' }}>
+                          <label className="field-label">Institutional Email</label>
+                          <input 
+                            className="field-input" type="email" 
+                            value={emailForm.email}
+                            onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })}
+                            placeholder="student@university.edu" required
+                            style={{ padding: '14px 18px', borderRadius: '12px' }}
+                          />
+                        </div>
+                        <div className="field-group" style={{ marginBottom: '28px' }}>
+                          <label className="field-label">Password</label>
+                          <input 
+                            className="field-input" type="password" 
+                            value={emailForm.password}
+                            onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                            placeholder="••••••••" required
+                            style={{ padding: '14px 18px', borderRadius: '12px' }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                {voterMethod === 'aadhaar' && (
-                  <motion.form 
-                    key="aadhaar-form"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    onSubmit={handleAadhaarVerify}
-                  >
-                    <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
-                      Verify your identity using your 12-digit Aadhaar number for instant eligibility check.
-                    </p>
-                    <div className="field-group" style={{ marginBottom: '28px' }}>
-                      <label className="field-label">Aadhaar Number</label>
-                      <input 
-                        className="field-input" type="text" maxLength="12"
-                        value={aadhaarNumber}
-                        onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
-                        placeholder="XXXX XXXX XXXX" required
-                        style={{ padding: '16px 20px', borderRadius: '12px', fontSize: '1.1rem', letterSpacing: '0.1em' }}
-                      />
-                    </div>
-                    <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
-                      {status === 'loading' ? 'Verifying...' : 'Verify Identity'}
-                    </AnimatedButton>
-                  </motion.form>
-                )}
+                    {voterMethod === 'aadhaar' && (
+                      <div key="aadhaar-fields">
+                        <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
+                          Verify your identity using your 12-digit Aadhaar number for instant eligibility check.
+                        </p>
+                        <div className="field-group" style={{ marginBottom: '28px' }}>
+                          <label className="field-label">Aadhaar Number</label>
+                          <input 
+                            className="field-input" type="text" maxLength="12"
+                            value={aadhaarNumber}
+                            onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                            placeholder="XXXX XXXX XXXX" required
+                            style={{ padding: '16px 20px', borderRadius: '12px', fontSize: 'clamp(1rem, 4vw, 1.25rem)', letterSpacing: '0.1em' }}
+                          />
+                        </div>
+                      </div>
+                    )}
 
-                {voterMethod === 'biometric' && (
-                  <motion.form 
-                    key="biometric-form"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    onSubmit={handlePasskeyLogin}
-                  >
-                    <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
-                      Use your device's native biometric (TouchID/FaceID) for the most secure login.
-                    </p>
-                    <div className="field-group" style={{ marginBottom: '28px' }}>
-                      <label className="field-label">Registered Email</label>
-                      <input 
-                        className="field-input" type="email" 
-                        value={passkeyEmail}
-                        onChange={(e) => setPasskeyEmail(e.target.value)}
-                        placeholder="email@example.com" required
-                        style={{ padding: '14px 18px', borderRadius: '12px' }}
-                      />
-                    </div>
+                    {voterMethod === 'biometric' && (
+                      <div key="biometric-fields">
+                        <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
+                          Use your device's native biometric (TouchID/FaceID) for the most secure login.
+                        </p>
+                        <div className="field-group" style={{ marginBottom: '28px' }}>
+                          <label className="field-label">Registered Email</label>
+                          <input 
+                            className="field-input" type="email" 
+                            value={passkeyEmail}
+                            onChange={(e) => setPasskeyEmail(e.target.value)}
+                            placeholder="email@example.com" required
+                            style={{ padding: '14px 18px', borderRadius: '12px' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
-                      {status === 'loading' ? 'Checking Passkey...' : 'Sign in with Biometrics'}
+                      {status === 'loading' ? 'Authenticating...' : (voterMethod === 'aadhaar' ? 'Verify Identity' : voterMethod === 'biometric' ? 'Sign in with Biometrics' : 'Sign In')}
                     </AnimatedButton>
-                    <p style={{ marginTop: '20px', fontSize: '0.85rem', textAlign: 'center', color: 'var(--ink-soft)', opacity: 0.8 }}>
-                      Requires a pre-registered biometric key.
-                    </p>
                   </motion.form>
-                )}
                 </AnimatePresence>
               </motion.div>
             ) : (

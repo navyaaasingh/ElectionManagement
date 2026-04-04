@@ -11,6 +11,7 @@ import {
   SlideInHorizontal,
   RevealText
 } from './AnimationWrapper.jsx'
+import { Moon, Sun, Menu, X } from 'lucide-react'
 
 const TRUST_POINTS = [
   'Biometric voter verification',
@@ -29,10 +30,17 @@ const SOCIAL_PROOF = [
 export default function PublicLanding() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
+  const [theme, setTheme] = useState(() => localStorage.getItem('campusvote-theme') || 'light')
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     setUser(getStoredAdmin() || getStoredVoter())
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('campusvote-theme', theme)
+  }, [theme])
 
   return (
     <section className="public-page">
@@ -50,19 +58,43 @@ export default function PublicLanding() {
           </span>
         </button>
 
-        <div className="public-topbar__actions">
-          <button type="button" className="utility-link utility-link--button" onClick={() => navigate('/app/verify')}>
-            Verify results
-          </button>
-          {!user ? (
-            <AnimatedButton className="button button--ghost" onClick={() => navigate('/login')}>
-              Sign in
-            </AnimatedButton>
-          ) : (
-            <AnimatedButton className="button button--primary" onClick={() => navigate('/app')}>
-              Return to workspace
-            </AnimatedButton>
-          )}
+        <button 
+          className="mobile-menu-toggle" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-expanded={isMobileMenuOpen}
+          aria-label="Toggle navigation menu"
+        >
+          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        <div className={`public-topbar__actions ${isMobileMenuOpen ? 'is-open' : ''}`}>
+          <div className="public-topbar__main-actions">
+            <button
+              type="button"
+              className="utility-toggle"
+              aria-label="Toggle theme"
+              onClick={() => {
+                setTheme((current) => (current === 'light' ? 'dark' : 'light'));
+                setIsMobileMenuOpen(false);
+              }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', padding: 0, borderRadius: '12px' }}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <div className="v-divider" style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '0 4px' }} />
+            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/app/verify'); setIsMobileMenuOpen(false); }}>
+              Verify results
+            </button>
+            {!user ? (
+              <AnimatedButton className="button button--ghost" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
+                Sign in
+              </AnimatedButton>
+            ) : (
+              <AnimatedButton className="button button--primary" onClick={() => { navigate('/app'); setIsMobileMenuOpen(false); }}>
+                Return to workspace
+              </AnimatedButton>
+            )}
+          </div>
         </div>
       </motion.header>
 

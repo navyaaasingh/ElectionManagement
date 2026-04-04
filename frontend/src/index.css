@@ -1,4 +1,15 @@
-@import '../../shared-ui/tokens.css';
+/* index.css — CampusVote Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;1,600&display=swap');
+
+/* Font tokens — defined locally so no external tokens file needed */
+:root {
+  --em-font-sans:   'Inter', system-ui, -apple-system, sans-serif;
+  --em-font-serif:  'Lora', Georgia, serif;
+  --em-text:        #181712;
+  --em-text-muted:  #403e38;
+  --em-text-soft:   #767266;
+}
+
 
 /* ============================================================
    DESIGN TOKENS — Single source of truth
@@ -189,10 +200,32 @@ a {
   border: 1px solid var(--line-soft);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-1) 80%, transparent);
-  /* Hide on mobile, shown via JS toggle */
+  
+  /* Hide on mobile by default, but show as vertical drawer when .is-open */
   @media (max-width: 800px) {
     display: none;
+    &.is-open {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: calc(100% + 12px);
+      left: clamp(1rem, 4vw, 2.5rem);
+      right: clamp(1rem, 4vw, 2.5rem);
+      background: var(--glass-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: var(--space-4);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow-premium);
+      z-index: 50;
+      animation: slideDown 0.3s cubic-bezier(0.215, 0.61, 0.355, 1);
+    }
   }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .app-header__right {
@@ -246,7 +279,7 @@ a {
 }
 
 /* Hide brand text on very small screens to save space */
-@media (max-width: 380px) {
+@media (max-width: 480px) {
   .brand-copy {
     display: none;
   }
@@ -289,6 +322,13 @@ a {
   display: inline-flex;
   align-items: center;
   transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+
+  @media (max-width: 800px) {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    border-radius: var(--radius-control);
+  }
 }
 
 .role-tab.is-active {
@@ -456,6 +496,10 @@ a {
   align-items: center;
   justify-content: center;
   margin-left: auto;
+
+  @media (max-width: 800px) {
+    display: flex;
+  }
 }
 
 /* ============================================================
@@ -494,13 +538,48 @@ a {
   justify-content: space-between;
   border-bottom: 1px solid var(--line-soft);
   padding-bottom: var(--space-3);
+  position: relative; /* Anchor for mobile drawer */
 }
 
 .public-topbar__actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  flex-wrap: wrap;
+  
+  @media (max-width: 800px) {
+    display: none;
+    &.is-open {
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--line-strong);
+      padding: var(--space-4);
+      z-index: 50;
+      box-shadow: var(--shadow-md);
+      animation: slideDown 0.3s ease;
+    }
+  }
+}
+
+.public-topbar__main-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  @media (max-width: 800px) {
+    flex-direction: column;
+    width: 100%;
+    
+    .v-divider { display: none; }
+    .utility-toggle, .utility-link, .button {
+       width: 100%;
+       justify-content: center;
+    }
+  }
 }
 
 /* ============================================================
@@ -651,6 +730,15 @@ a {
 @media (min-width: 768px) {
   .landing-hero {
     grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+/* Narrow-screen KPI card / Stat fix */
+@container (max-width: 440px) {
+  .surface-card[style*="aspect-ratio: 1/1"],
+  .surface-card[style*="aspect-ratio:1/1"] {
+    aspect-ratio: auto !important;
+    min-height: 240px;
   }
 }
 

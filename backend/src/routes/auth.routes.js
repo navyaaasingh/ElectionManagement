@@ -34,20 +34,6 @@ router.post('/login-email', authLimiter, async (req, res) => {
         const voter = await Voter.findOne({ where: { email } });
 
         if (!voter) {
-            // 2. Check if student exists (Self-service signup check)
-            const student = await Student.findOne({ where: { email } });
-            if (student) {
-                return res.status(404).json({
-                    error: 'Voter record not found',
-                    code: 'VOTER_NOT_FOUND_STUDENT_EXISTS',
-                    message: 'Student record found. Please complete your voter registration.',
-                    student: {
-                        name: student.name,
-                        rollNumber: student.roll_number,
-                        email: student.email
-                    }
-                });
-            }
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
