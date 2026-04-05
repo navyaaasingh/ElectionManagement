@@ -19,7 +19,7 @@ export const FadeInUp = ({ children, delay = 0, duration = 0.6, className = '' }
 /**
  * StaggerContainer & StaggerItem for lists
  */
-export const StaggerContainer = ({ children, delay = 0, staggerChildren = 0.1, className = '' }) => (
+export const StaggerContainer = ({ children, delay = 0, staggerChildren = 0.1, className = '', style }) => (
   <motion.div
     initial="hidden"
     whileInView="visible"
@@ -35,6 +35,7 @@ export const StaggerContainer = ({ children, delay = 0, staggerChildren = 0.1, c
       }
     }}
     className={className}
+    style={style}
   >
     {children}
   </motion.div>
@@ -61,8 +62,8 @@ export const AnimatedCounter = ({ value, duration = 2, decimals = 0, suffix = ''
     const node = nodeRef.current
     if (!node) return
 
-    const controls = animate(0, value, {
-      duration,
+    const controls = animate(Math.floor(value * 0.8), value, {
+      duration: 0.8,
       onUpdate(value) {
         node.textContent = prefix + value.toFixed(decimals) + suffix
       },
@@ -125,6 +126,7 @@ export const RevealText = ({ text, delay = 0, className = '' }) => {
           }
         }
       }}
+      style={{ display: 'flex', flexWrap: 'wrap', gap: '0 0.25em' }}
     >
       {words.map((word, i) => (
         <motion.span
@@ -134,7 +136,6 @@ export const RevealText = ({ text, delay = 0, className = '' }) => {
             visible: { opacity: 1, y: 0 }
           }}
           transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
-          style={{ display: 'inline-block', marginRight: '0.25em' }}
         >
           {word}
         </motion.span>

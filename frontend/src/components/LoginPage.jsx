@@ -10,6 +10,7 @@ import {
 } from '../api/auth.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, AnimatedButton } from './AnimationWrapper'
+import { ArrowLeft, Lock, Fingerprint, Shield } from 'lucide-react'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -33,6 +34,15 @@ export default function LoginPage() {
       setVoterMethod(method)
     }
   }, [location])
+
+  // Auto-fill demo credentials
+  const fillDemoCredentials = () => {
+    if (activeTab === 'admin') {
+      setAdminForm({ username: 'admin', password: 'admin123' })
+    } else {
+      setEmailForm({ email: 'student@demo.edu', password: 'demo1234' })
+    }
+  }
 
   const handleAdminLogin = async (e) => {
     e.preventDefault()
@@ -59,6 +69,12 @@ export default function LoginPage() {
           message: 'Would you like to complete your voter registration?'
         })
         setStudentFound(err.student)
+      } else if (err.code === 'VOTER_NOT_FOUND' || err.status === 404) {
+        setStatus({ 
+          warning: 'No account associated with this email.',
+          message: 'If you are a new student, you can register your voter identity now.',
+          isNewUser: true
+        })
       } else if (err.code === 'APPROVAL_PENDING') {
         setStatus({ info: 'Your registration is still pending admin approval. Please check back later.' })
       } else {
@@ -79,7 +95,7 @@ export default function LoginPage() {
         setStatus(null)
       }, 2000)
     } catch (err) {
-      setStatus({ error: err.error || 'Verification failed' })
+      setStatus({ error: err.error || 'Identity verification failed. Please ensure the number is correct.' })
     }
   }
 
@@ -101,14 +117,14 @@ export default function LoginPage() {
       navigate('/app/voter')
     } catch (err) {
       console.error(err)
-      if (err.code === 'BIOMETRIC_NOT_REGISTERED') {
+      if (err.code === 'BIOMETRIC_NOT_REGISTERED' || err.status === 404) {
         setStatus({ 
           info: 'Biometric registration not found.',
-          message: 'Please log in with your institutional email and password to register your biometric identity.',
+          message: 'Please log in with institutional credentials to begin registration, or visit the campus administrator for biometric mapping.',
           action: () => setVoterMethod('email')
         })
       } else {
-        setStatus({ error: err.error || err.message || 'Passkey authentication failed' })
+        setStatus({ error: err.error || err.message || 'Biometric authentication failed. Ensure you are using a registered device.' })
       }
     }
   }
@@ -141,8 +157,23 @@ export default function LoginPage() {
 
   return (
     <section className="portal-page portal-page--narrow">
-      <div className="section-heading">
-        <p className="section-kicker">Secure Access</p>
+      {/* Back navigation + Brand */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+        <button 
+          type="button" 
+          onClick={() => navigate('/')} 
+          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--ink-soft)', fontSize: '0.9rem', padding: '8px 0' }}
+        >
+          <ArrowLeft size={16} />
+          Back to CampusVote
+        </button>
+      </div>
+
+      <div className="section-heading" style={{ textAlign: 'center' }}>
+        <p className="section-kicker" style={{ textAlign: 'center' }}>
+          <Lock size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '4px' }} />
+          Secure Access
+        </p>
         <h1>{activeTab === 'voter' ? 'Voter Authentication' : 'Admin Portal'}</h1>
       </div>
 
@@ -215,7 +246,7 @@ export default function LoginPage() {
                 {/* Voter Method Selection */}
                 <div className="login-method-tabs" style={{ display: 'flex', gap: '4px', marginBottom: 'var(--space-6)', padding: '4px', background: 'var(--surface-sunken)', borderRadius: '14px' }}>
                   <TabButton 
-                    id="email" label="ID" active={voterMethod === 'email'} 
+                    id="email" label="Institutional ID" active={voterMethod === 'email'} 
                     onClick={() => setVoterMethod('email')} 
                   />
                   <TabButton 
@@ -248,7 +279,7 @@ export default function LoginPage() {
                             style={{ padding: '14px 18px', borderRadius: '12px' }}
                           />
                         </div>
-                        <div className="field-group" style={{ marginBottom: '28px' }}>
+                        <div className="field-group" style={{ marginBottom: '12px' }}>
                           <label className="field-label">Password</label>
                           <input 
                             className="field-input" type="password" 
@@ -257,6 +288,11 @@ export default function LoginPage() {
                             placeholder="••••••••" required
                             style={{ padding: '14px 18px', borderRadius: '12px' }}
                           />
+                        </div>
+                        <div style={{ textAlign: 'right', marginBottom: '28px' }}>
+                          <button type="button" className="utility-link" style={{ fontSize: '0.85rem', color: 'var(--brand)' }} onClick={() => setStatus({ info: 'Please contact your campus administrator to reset your password.' })}>
+                            Forgot password?
+                          </button>
                         </div>
                       </div>
                     )}
@@ -269,22 +305,37 @@ export default function LoginPage() {
                         <div className="field-group" style={{ marginBottom: '28px' }}>
                           <label className="field-label">Aadhaar Number</label>
                           <input 
-                            className="field-input" type="text" maxLength="12"
+                            className="field-input" type="text" maxLength="14"
                             value={aadhaarNumber}
-                            onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '').slice(0, 12)
+                              const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+                              setAadhaarNumber(formatted)
+                            }}
                             placeholder="XXXX XXXX XXXX" required
                             style={{ padding: '16px 20px', borderRadius: '12px', fontSize: 'clamp(1rem, 4vw, 1.25rem)', letterSpacing: '0.1em' }}
                           />
+                        </div>
+                        <div style={{ padding: '12px 16px', background: 'rgba(26, 92, 58, 0.05)', borderRadius: '10px', fontSize: '0.8rem', color: 'var(--ink-soft)', marginBottom: '16px', borderLeft: '3px solid var(--brand)' }}>
+                          <strong>Demo mode</strong> — No real data is stored or verified. Use <button type="button" className="utility-link" style={{ fontSize: '0.8rem', fontWeight: 700 }} onClick={() => setAadhaarNumber('0000 0000 0000')}>0000 0000 0000</button> for demo.
                         </div>
                       </div>
                     )}
 
                     {voterMethod === 'biometric' && (
                       <div key="biometric-fields">
-                        <p style={{ color: 'var(--ink-soft)', fontSize: '0.95rem', marginBottom: '28px', lineHeight: 1.6 }}>
-                          Use your device's native biometric (TouchID/FaceID) for the most secure login.
-                        </p>
-                        <div className="field-group" style={{ marginBottom: '28px' }}>
+                        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                          <div style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid var(--brand)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26, 92, 58, 0.05)' }}>
+                            <Fingerprint size={36} style={{ color: 'var(--brand)' }} />
+                          </div>
+                          <p style={{ color: 'var(--ink)', fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>
+                            Biometric Authentication
+                          </p>
+                          <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: 1.6, maxWidth: '40ch', margin: '0 auto 24px' }}>
+                            Use your device's native biometric (TouchID / FaceID / Windows Hello) for the most secure login.
+                          </p>
+                        </div>
+                        <div className="field-group" style={{ marginBottom: '16px' }}>
                           <label className="field-label">Registered Email</label>
                           <input 
                             className="field-input" type="email" 
@@ -293,6 +344,9 @@ export default function LoginPage() {
                             placeholder="email@example.com" required
                             style={{ padding: '14px 18px', borderRadius: '12px' }}
                           />
+                        </div>
+                        <div style={{ padding: '12px 16px', background: 'rgba(26, 92, 58, 0.05)', borderRadius: '10px', fontSize: '0.8rem', color: 'var(--ink-soft)', marginBottom: '16px', borderLeft: '3px solid var(--brand)' }}>
+                          Biometric login requires a registered device. If you haven't completed biometric registration, please <button type="button" className="utility-link" style={{ fontSize: '0.8rem', fontWeight: 600 }} onClick={() => setVoterMethod('email')}>sign in with your email</button> first.
                         </div>
                       </div>
                     )}
@@ -322,7 +376,7 @@ export default function LoginPage() {
                     style={{ padding: '14px 18px', borderRadius: '12px' }}
                   />
                 </div>
-                <div className="field-group" style={{ marginBottom: '28px' }}>
+                <div className="field-group" style={{ marginBottom: '12px' }}>
                   <label className="field-label">Password</label>
                   <input 
                     className="field-input" type="password" 
@@ -331,6 +385,11 @@ export default function LoginPage() {
                     placeholder="••••••••" required
                     style={{ padding: '14px 18px', borderRadius: '12px' }}
                   />
+                </div>
+                <div style={{ textAlign: 'right', marginBottom: '28px' }}>
+                  <button type="button" className="utility-link" style={{ fontSize: '0.85rem', color: 'var(--brand)' }} onClick={() => setStatus({ info: 'Please contact the system administrator.' })}>
+                    Forgot password?
+                  </button>
                 </div>
                 <AnimatedButton type="submit" className="button button--primary" style={{ width: '100%', padding: '16px' }} disabled={status === 'loading'}>
                   {status === 'loading' ? 'Verifying...' : 'Institutional Sign In'}
@@ -355,6 +414,16 @@ export default function LoginPage() {
           {status?.info && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="surface-note surface-note--info" style={{ marginTop: '24px' }}>
               {status.info}
+              {status.message && <p style={{ fontSize: '0.9rem', marginTop: '8px' }}>{status.message}</p>}
+              {status.action && (
+                <AnimatedButton 
+                  className="button button--ghost" 
+                  style={{ marginTop: '12px', width: '100%' }}
+                  onClick={status.action}
+                >
+                  Switch to Email Login
+                </AnimatedButton>
+              )}
             </motion.div>
           )}
 
@@ -372,10 +441,22 @@ export default function LoginPage() {
             </motion.div>
           )}
           </AnimatePresence>
+
+          {/* Demo credentials hint */}
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <button type="button" onClick={fillDemoCredentials} style={{ background: 'none', border: '1px dashed var(--line-soft)', borderRadius: '10px', padding: '10px 20px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--ink-soft)', width: '100%', transition: 'all 0.2s ease' }}>
+              ✦ Use demo credentials to explore the platform
+            </button>
+          </div>
         </div>
       </motion.div>
 
-      <div style={{ marginTop: '32px', textAlign: 'center', color: 'var(--ink-soft)' }}>
+      {/* Security reassurance + registration link */}
+      <div style={{ textAlign: 'center', color: 'var(--ink-soft)', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+          <Shield size={14} />
+          <span>256-bit encrypted &bull; Credentials never stored in plaintext</span>
+        </div>
         <p style={{ fontSize: '0.9rem' }}>
           New to the campus? <button className="utility-link" onClick={() => navigate('/signup')}>Register your vote</button>
         </p>

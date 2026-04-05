@@ -97,11 +97,11 @@ export default function PublicLanding() {
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <div className="v-divider" style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '0 4px' }} />
-            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/app/verify'); setIsMobileMenuOpen(false); }}>
-              Verify results
+            <button type="button" className="utility-link utility-link--button" onClick={() => { const el = document.getElementById('platform-features'); if (el) el.scrollIntoView({ behavior: 'smooth' }); setIsMobileMenuOpen(false); }}>
+              Features
             </button>
             {!user ? (
-              <AnimatedButton className="button button--ghost" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
+              <AnimatedButton className="button button--primary" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
                 Sign in
               </AnimatedButton>
             ) : (
@@ -141,7 +141,7 @@ export default function PublicLanding() {
               className="button button--ghost" 
               onClick={() => navigate('/demo')}
             >
-              Explore Demo Experience
+              View live demo
             </AnimatedButton>
           </StaggerItem>
         </StaggerContainer>
@@ -201,6 +201,58 @@ export default function PublicLanding() {
                 </div>
              </div>
           </motion.div>
+        </FadeInUp>
+
+        {/* --- PRODUCT SCREENSHOT: Admin Dashboard --- */}
+        <FadeInUp delay={0.6} style={{ marginTop: '24px' }}>
+          <div className="surface-card" style={{ padding: '24px', border: '1px solid var(--line-soft)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ background: 'var(--surface-2)', borderRadius: '12px', padding: '24px', border: '1px solid var(--line-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)' }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Admin Dashboard</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Active Elections</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand)' }}>3</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Registered Voters</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand)' }}>4,812</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Pending Approvals</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent)' }}>17</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'var(--surface-sunken)', borderRadius: '2px', marginTop: '8px' }}>
+                    <div style={{ height: '100%', width: '73%', background: 'var(--brand)', borderRadius: '2px' }} />
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--ink-soft)' }}>73% voter biometric registration complete</span>
+                </div>
+              </div>
+              <div style={{ background: 'var(--surface-2)', borderRadius: '12px', padding: '24px', border: '1px solid var(--line-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <Fingerprint size={14} style={{ color: 'var(--brand)' }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Voter Terminal</span>
+                </div>
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', border: '3px solid var(--brand)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Fingerprint size={28} style={{ color: 'var(--brand)' }} />
+                  </div>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Place finger to authenticate</span>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', marginTop: '8px' }}>Biometric check-in at campus kiosk</p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <div style={{ flex: 1, height: '36px', background: 'var(--brand)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.8rem', fontWeight: 600 }}>Cast Ballot</div>
+                  <div style={{ flex: 1, height: '36px', border: '1px solid var(--line-soft)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--ink-soft)' }}>Verify Receipt</div>
+                </div>
+              </div>
+            </div>
+            <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.8rem', color: 'var(--ink-soft)' }}>
+              Left: Admin dashboard overview &bull; Right: Voter biometric terminal
+            </p>
+          </div>
         </FadeInUp>
       </div>
 

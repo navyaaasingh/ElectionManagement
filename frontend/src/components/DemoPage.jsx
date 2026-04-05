@@ -9,7 +9,7 @@ import {
   AnimatedButton, 
   SlideInHorizontal 
 } from './AnimationWrapper.jsx'
-import { Moon, Sun, Menu, X } from 'lucide-react'
+import { Moon, Sun, Menu, X, Shield, BarChart3, Fingerprint } from 'lucide-react'
 
 // --- MOCK DATA ---
 const TURNOUT_DATA = [
@@ -320,11 +320,11 @@ export default function DemoPage() {
       </div>
 
       {/* Hero Stats */}
-      <StaggerContainer className="hero-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
+      <StaggerContainer className="hero-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '20px 24px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
                <span className="section-kicker">Total Participation</span>
-               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+               <div style={{ fontSize: '2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
                  <AnimatedCounter value={18402} />
                </div>
                <div style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 600 }}>+12% vs last year</div>
@@ -334,33 +334,33 @@ export default function DemoPage() {
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
                <span className="section-kicker">Integrity Score</span>
-               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
+               <div style={{ fontSize: '2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
                  <AnimatedCounter value={100} suffix="/100" />
                </div>
                <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Zero anomalies detected</div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
                <span className="section-kicker">Avg. Voting Time</span>
-               <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
+               <div style={{ fontSize: '2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
                <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', background: 'var(--brand)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '20px 24px', background: 'var(--brand)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '140px' }}>
                <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
-               <div style={{ fontSize: '2.2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
+               <div style={{ fontSize: '1.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
                <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>
             </motion.div>
          </StaggerItem>
       </StaggerContainer>
 
       {/* Chart Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-        <div className="surface-card" style={{ padding: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px' }}>
+        <div className="surface-card" style={{ padding: '32px', minHeight: '400px' }}>
           <div style={{ marginBottom: '24px' }}>
              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Turnout Trend</h3>
              <p style={{ margin: '4px 0', color: 'var(--ink-soft)', fontSize: '0.9rem' }}>Annual student council participation (2015 - 2025)</p>
@@ -368,7 +368,7 @@ export default function DemoPage() {
           <VoterTurnoutChart />
         </div>
 
-        <div className="surface-card" style={{ padding: '32px' }}>
+        <div className="surface-card" style={{ padding: '32px', minHeight: '400px' }}>
           <div style={{ marginBottom: '24px' }}>
              <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Participation by Department</h3>
              <p style={{ margin: '4px 0', color: 'var(--ink-soft)', fontSize: '0.9rem' }}>Current election contribution mix</p>
@@ -377,6 +377,8 @@ export default function DemoPage() {
         </div>
       </div>
 
+
+
       {/* Interactive Audit Section */}
       <div className="surface-card" style={{ padding: '32px', backgroundImage: 'radial-gradient(circle at top right, var(--surface-2), var(--surface-1))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
@@ -384,8 +386,17 @@ export default function DemoPage() {
               <h2 style={{ margin: 0 }}>System Audit Proof</h2>
               <p style={{ margin: '4px 0', color: 'var(--ink-soft)' }}>Cryptographic anchoring logs for the 2025 election cycle</p>
            </div>
-           <button className="button button--ghost button--inline" onClick={() => alert('Demo Feature: Downloading full cryptographic proof bundle...')}>
-              Download Audit Bundle (PDF)
+           <button className="button button--ghost button--inline" onClick={() => {
+              const auditData = `CampusVote Audit Report\n========================\nElection: Student Council 2025\nTotal Votes: 18,402\nIntegrity Score: 100/100\nAnomalies Detected: 0\n\nGenesis Block: 0x4f...882a [09:00:01]\n10k Milestone: 0xf1...99bc [12:45:12]\nPolls Closed: EID CV-2025-U01 [18:00:00]\n\nAll hashes anchored to institutional blockchain.\nZero-knowledge identity gate applied.`
+              const blob = new Blob([auditData], { type: 'text/plain' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'CampusVote_Audit_Bundle.pdf'
+              a.click()
+              URL.revokeObjectURL(url)
+           }}>
+              Download Audit Bundle
            </button>
         </div>
         
@@ -394,7 +405,7 @@ export default function DemoPage() {
              <article style={{ display: 'flex', gap: '16px', background: 'var(--surface-1)', padding: '12px', borderRadius: '10px', border: '1px solid var(--line-soft)' }}>
                 <span style={{ color: 'var(--success)', fontWeight: 700 }}>[09:00:01]</span>
                 <span style={{ color: 'var(--ink)' }}>GENESIS_BLOCK_ANCHORED</span>
-                <span style={{ flex: 1, textAlign: 'right', display: 'none' }}>0x4f...882a</span>
+                <span style={{ flex: 1, textAlign: 'right', opacity: 0.5, fontSize: '0.75rem' }}>0x4f...882a</span>
              </article>
              <article style={{ display: 'flex', gap: '16px', background: 'var(--surface-1)', padding: '12px', borderRadius: '10px', border: '1px solid var(--line-soft)' }}>
                 <span style={{ color: 'var(--brand)', fontWeight: 700 }}>[12:45:12]</span>
@@ -408,7 +419,57 @@ export default function DemoPage() {
              </article>
           </div>
           <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(26, 92, 58, 0.05)', borderRadius: '12px', borderLeft: '4px solid var(--brand)', fontSize: '0.85rem' }}>
-             <strong>Platform Auditor Note:</strong> All hashes listed are anchored to the institutional blockchain. Individual votes are detatched from student IDs using a zero-knowledge identity gate.
+             <strong>Platform Auditor Note:</strong> All hashes listed are anchored to the institutional blockchain. Individual votes are detached from student IDs using a zero-knowledge identity gate.
+          </div>
+        </div>
+      </div>
+
+      {/* Product UI Preview Section */}
+      <div className="surface-card" style={{ padding: '32px' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ margin: 0 }}>What the Platform Looks Like</h2>
+          <p style={{ margin: '4px 0', color: 'var(--ink-soft)' }}>Interactive previews of the admin and voter interfaces</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '16px', padding: '24px', border: '1px solid var(--line-soft)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <BarChart3 size={16} style={{ color: 'var(--brand)' }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Admin Console</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--surface-1)', borderRadius: '10px', border: '1px solid var(--line-soft)' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Student Council 2025</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 700 }}>● Live</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--surface-1)', borderRadius: '10px', border: '1px solid var(--line-soft)' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Department Rep Q1</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--ink-soft)', fontWeight: 700 }}>● Closed</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--surface-1)', borderRadius: '10px', border: '1px solid var(--line-soft)' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Faculty Board Q2</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700 }}>● Scheduled</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '16px', padding: '24px', border: '1px solid var(--line-soft)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <Shield size={16} style={{ color: 'var(--brand)' }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Voter Ballot View</span>
+            </div>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <Fingerprint size={40} style={{ color: 'var(--brand)', marginBottom: '12px' }} />
+              <h4 style={{ margin: '0 0 8px' }}>Identity Verified ✓</h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--ink-soft)' }}>You are eligible to vote in 1 active election</p>
+            </div>
+            <div style={{ padding: '16px', background: 'var(--surface-1)', borderRadius: '12px', border: '1px solid var(--line-soft)', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Student Council 2025</span>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--ink-soft)', margin: '4px 0 0' }}>3 candidates • Closes 6:00 PM</p>
+                </div>
+                <div style={{ padding: '8px 16px', background: 'var(--brand)', color: 'white', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700 }}>Cast Vote →</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
