@@ -97,11 +97,11 @@ export default function PublicLanding() {
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <div className="v-divider" style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '0 4px' }} />
-            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/demo'); setIsMobileMenuOpen(false); }}>
-              Live demo
+            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/app/verify'); setIsMobileMenuOpen(false); }}>
+              Verify results
             </button>
             {!user ? (
-              <AnimatedButton className="button button--primary" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
+              <AnimatedButton className="button button--ghost" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
                 Sign in
               </AnimatedButton>
             ) : (
@@ -141,7 +141,7 @@ export default function PublicLanding() {
               className="button button--ghost" 
               onClick={() => navigate('/demo')}
             >
-              View live demo
+              Explore Demo Experience
             </AnimatedButton>
           </StaggerItem>
         </StaggerContainer>

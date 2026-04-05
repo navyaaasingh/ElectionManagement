@@ -1,309 +1,164 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { 
-    generateRegistrationOptions, 
-    verifyRegistrationResponse, 
-    generateAuthenticationOptions, 
-    verifyAuthenticationResponse 
-} = require('@simplewebauthn/server');
-const { Voter, Student, VoterPasskey } = require('../models/index.js');
+const crypto = require('crypto');
+const { Voter } = require('../models/index.js');
 const { generateToken, verifyToken } = require('../middleware/auth.middleware.js');
 const { authLimiter } = require('../middleware/rateLimit.middleware.js');
 const logger = require('../utils/logger.js');
 
+
 const router = express.Router();
 
-// WebAuthn configuration
-const RP_ID = process.env.RP_ID || 'localhost';
-const RP_NAME = 'CampusVote';
-const ORIGIN = process.env.ORIGIN || 'http://localhost:3001';
-
 /**
- * POST /api/v1/auth/login-email
- * Voter login with email and password
+ * POST /api/v1/auth/register-voter
+ * Register a new voter
  */
-router.post('/login-email', authLimiter, async (req, res) => {
+router.post('/register-voter', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const {
+            aadharNumber,
+            fullName,
+            biometricTemplate,
+            districtId,
+        } = req.body;
 
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email and password are required' });
-        }
+        logger.info('VOTER_REGISTRATION_ATTEMPT', {
+            aadharNumber: aadharNumber ? aadharNumber.slice(-4) : 'unknown',
+            ip: req.ip,
+            timestamp: new Date().toISOString()
+        });
 
-        // 1. Check if voter exists
-        const voter = await Voter.findOne({ where: { email } });
-
-        if (!voter) {
-            // Check if they are a registered student (Institutional Roll)
-            const student = await Student.findOne({ where: { email } });
-            if (student) {
-                return res.status(404).json({ 
-                    error: 'Voter record not found',
-                    code: 'VOTER_NOT_FOUND_STUDENT_EXISTS',
-                    message: `We found your student record (${student.roll_number}). Please complete your voter registration.`,
-                    student: {
-                        rollNumber: student.roll_number,
-                        fullName: student.full_name,
-                        email: student.email
-                    }
-                });
-            }
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // 3. Verify password
-        const isValid = await bcrypt.compare(password, voter.password);
-        if (!isValid) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // 4. Check status
-        if (!voter.is_approved) {
-            return res.status(403).json({
-                error: 'Account pending approval',
-                code: 'APPROVAL_PENDING',
-                message: 'Your voter registration is being reviewed by the admin.'
+        // Validate required fields
+        if (!aadharNumber || !fullName || !biometricTemplate || !districtId) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                required: ['aadharNumber', 'fullName', 'biometricTemplate', 'districtId'],
             });
         }
 
-        // 5. Generate token
-        const token = generateToken({
-            voterId: voter.voter_id,
-            role: 'voter',
-            status: voter.status
-        });
-
-        res.json({
-            success: true,
-            user: {
-                voterId: voter.voter_id,
-                fullName: voter.full_name,
-                isBiometricRegistered: voter.is_biometric_registered
-            },
-            token
-        });
-
-    } catch (error) {
-        logger.error('EMAIL_LOGIN_ERROR', { error: error.message });
-        res.status(500).json({ error: 'Login failed' });
-    }
-});
-
-/**
- * POST /api/v1/auth/signup-voter
- * Self-service signup for students
- */
-router.post('/signup-voter', authLimiter, async (req, res) => {
-    try {
-        const { rollNumber, email, password, fullName, aadharNumber, districtId } = req.body;
-
-        // Verify student record first
-        const student = await Student.findOne({ where: { roll_number: rollNumber, email } });
-        if (!student) {
-            return res.status(403).json({ error: 'Institutional record validation failed' });
+        // Validate Aadhar number format (12 digits)
+        if (!/^\d{12}$/.test(aadharNumber)) {
+            return res.status(400).json({
+                error: 'Invalid Aadhar number',
+                message: 'Aadhar number must be exactly 12 digits',
+            });
         }
 
-        // Check if already registered
-        const existingVoter = await Voter.findOne({ where: { email } });
+        // Check if voter already exists
+        const existingVoter = await Voter.findOne({
+            where: { aadhar_number: aadharNumber },
+        });
+
         if (existingVoter) {
-            return res.status(409).json({ error: 'Voter already registered' });
+            return res.status(409).json({
+                error: 'Voter already registered',
+                message: 'A voter with this Aadhar number already exists',
+            });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Hash the biometric template (SHA-256)
+        // In production, this would be done on the IoT terminal
+        const biometricHash = crypto
+            .createHash('sha256')
+            .update(biometricTemplate)
+            .digest('hex');
 
+        // Create voter record
         const voter = await Voter.create({
-            roll_number: rollNumber,
-            email,
-            password: hashedPassword,
-            full_name: fullName || student.name,
             aadhar_number: aadharNumber,
+            full_name: fullName,
+            biometric_hash: biometricHash,
             district_id: districtId,
-            status: 'pending',
-            is_approved: false
+            status: 'active',
         });
 
         res.status(201).json({
             success: true,
-            message: 'Registration submitted for admin review',
-            voterId: voter.voter_id
-        });
-
-    } catch (error) {
-        logger.error('VOTER_SIGNUP_ERROR', { error: error.message });
-        res.status(500).json({ error: 'Signup failed' });
-    }
-});
-
-/**
- * POST /api/v1/auth/aadhaar-verify
- * Mock Aadhaar identity verification
- */
-router.post('/aadhaar-verify', async (req, res) => {
-    const { aadharNumber } = req.body;
-    if (!/^\d{12}$/.test(aadharNumber)) {
-        return res.status(400).json({ error: 'Invalid Aadhaar format' });
-    }
-
-    // Mock verification delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    res.json({
-        success: true,
-        message: 'Aadhaar identity verified successfully',
-        data: {
-            name: 'Verified User',
-            isEligible: true
-        }
-    });
-});
-
-/**
- * WebAuthn (Passkey) Routes
- */
-
-// Temporarily store challenges in memory (use Redis/Session in production)
-const challenges = new Map();
-
-router.post('/passkey/register-options', async (req, res) => {
-    const { voterId } = req.body;
-    const voter = await Voter.findByPk(voterId);
-    if (!voter) return res.status(404).json({ error: 'Voter not found' });
-
-    const userPasskeys = await VoterPasskey.findAll({ where: { voter_id: voterId } });
-
-    const options = await generateRegistrationOptions({
-        rpName: RP_NAME,
-        rpID: RP_ID,
-        userID: voterId,
-        userName: voter.email,
-        attestationType: 'none',
-        excludeCredentials: userPasskeys.map(pk => ({
-            id: pk.credential_id,
-            type: 'public-key',
-            transports: pk.transports ? JSON.parse(pk.transports) : [],
-        })),
-        authenticatorSelection: {
-            residentKey: 'preferred',
-            userVerification: 'preferred',
-        },
-    });
-
-    challenges.set(voterId, options.challenge);
-
-    res.json(options);
-});
-
-router.post('/passkey/verify-registration', async (req, res) => {
-    const { voterId, body } = req.body;
-    const expectedChallenge = challenges.get(voterId);
-
-    try {
-        const verification = await verifyRegistrationResponse({
-            response: body,
-            expectedChallenge,
-            expectedOrigin: ORIGIN,
-            expectedRPID: RP_ID,
-        });
-
-        if (verification.verified) {
-            const { registrationInfo } = verification;
-            await VoterPasskey.create({
-                voter_id: voterId,
-                credential_id: registrationInfo.credentialID,
-                public_key: registrationInfo.credentialPublicKey,
-                counter: registrationInfo.counter,
-                transports: JSON.stringify(body.response.transports || []),
-            });
-
-            await Voter.update({ is_biometric_registered: true }, { where: { voter_id: voterId } });
-
-            res.json({ success: true });
-        } else {
-            res.status(400).json({ error: 'Verification failed' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        challenges.delete(voterId);
-    }
-});
-
-router.post('/passkey/login-options', async (req, res) => {
-    const { email } = req.body;
-    const voter = await Voter.findOne({ where: { email } });
-    if (!voter) return res.status(404).json({ error: 'Voter not found' });
-
-    const userPasskeys = await VoterPasskey.findAll({ where: { voter_id: voter.voter_id } });
-
-    if (userPasskeys.length === 0) {
-        return res.status(400).json({ 
-            error: 'Biometric login unavailable',
-            code: 'BIOMETRIC_NOT_REGISTERED',
-            message: 'Your biometric data is not yet registered. Please log in with your institutional email and password to complete biometric registration.'
-        });
-    }
-
-    const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
-        allowCredentials: userPasskeys.map(pk => ({
-            id: pk.credential_id,
-            type: 'public-key',
-            transports: pk.transports ? JSON.parse(pk.transports) : [],
-        })),
-        userVerification: 'preferred',
-    });
-
-    challenges.set(voter.voter_id, options.challenge);
-
-    res.json(options);
-});
-
-router.post('/passkey/verify-authentication', async (req, res) => {
-    const { email, body } = req.body;
-    const voter = await Voter.findOne({ where: { email } });
-    if (!voter) return res.status(404).json({ error: 'Voter not found' });
-
-    const passkey = await VoterPasskey.findOne({ 
-        where: { voter_id: voter.voter_id, credential_id: body.id } 
-    });
-
-    if (!passkey) return res.status(404).json({ error: 'Passkey not found' });
-
-    const expectedChallenge = challenges.get(voter.voter_id);
-
-    try {
-        const verification = await verifyAuthenticationResponse({
-            response: body,
-            expectedChallenge,
-            expectedOrigin: ORIGIN,
-            expectedRPID: RP_ID,
-            authenticator: {
-                credentialID: passkey.credential_id,
-                credentialPublicKey: passkey.public_key,
-                counter: passkey.counter,
+            message: 'Voter registered successfully',
+            voter: {
+                voterId: voter.voter_id,
+                fullName: voter.full_name,
+                districtId: voter.district_id,
+                registrationDate: voter.registration_date,
             },
         });
 
-        if (verification.verified) {
-            await VoterPasskey.update(
-                { counter: verification.authenticationInfo.newCounter, last_used: new Date() },
-                { where: { id: passkey.id } }
-            );
-
-            const token = generateToken({
-                voterId: voter.voter_id,
-                role: 'voter',
-                status: voter.status
-            });
-
-            res.json({ success: true, token, user: { fullName: voter.full_name } });
-        } else {
-            res.status(400).json({ error: 'Verification failed' });
-        }
     } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        challenges.delete(voter.voter_id);
+        console.error('Voter registration error:', error.message);
+
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({
+                error: 'Duplicate entry',
+                message: 'Biometric data already registered',
+            });
+        }
+
+        res.status(500).json({
+            error: 'Registration failed',
+            message: error.message,
+        });
+    }
+});
+
+/**
+ * POST /api/v1/auth/biometric
+ * Authenticate voter using biometric data
+ */
+router.post('/biometric', authLimiter, async (req, res) => {
+    try {
+        const { biometricTemplate, terminalId } = req.body;
+
+        if (!biometricTemplate || !terminalId) {
+            return res.status(400).json({
+                error: 'Missing required fields',
+                required: ['biometricTemplate', 'terminalId'],
+            });
+        }
+
+        // Hash the biometric template
+        const biometricHash = crypto
+            .createHash('sha256')
+            .update(biometricTemplate)
+            .digest('hex');
+
+        // Find voter by biometric hash
+        const voter = await Voter.findOne({
+            where: { biometric_hash: biometricHash, status: 'active' },
+        });
+
+        if (!voter) {
+            return res.status(401).json({
+                error: 'Authentication failed',
+                message: 'Biometric data not recognized',
+            });
+        }
+
+        // Generate JWT token for the voting session
+        const token = generateToken({
+            voterId: voter.voter_id,
+            districtId: voter.district_id,
+            role: 'voter',
+            terminalId,
+        });
+
+        res.json({
+            success: true,
+            message: 'Authentication successful',
+            voter: {
+                voterId: voter.voter_id,
+                fullName: voter.full_name,
+                districtId: voter.district_id,
+                hasVoted: voter.has_voted,
+            },
+            token,
+        });
+
+    } catch (error) {
+        console.error('Biometric auth error:', error.message);
+        res.status(500).json({
+            error: 'Authentication failed',
+            message: error.message,
+        });
     }
 });
 
@@ -322,6 +177,8 @@ router.post('/admin/login', authLimiter, async (req, res) => {
             });
         }
 
+        // TODO: Implement admin user model and lookup
+        // For now, using environment variable for demo
         const adminUsername = process.env.ADMIN_USERNAME || 'admin';
         const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
 
@@ -331,6 +188,7 @@ router.post('/admin/login', authLimiter, async (req, res) => {
             });
         }
 
+        // In production, use bcrypt.compare with hashed password from database
         const isValid = adminPasswordHash
             ? await bcrypt.compare(password, adminPasswordHash)
             : password === (process.env.ADMIN_PASSWORD || 'admin123'); // Demo only
@@ -341,6 +199,7 @@ router.post('/admin/login', authLimiter, async (req, res) => {
             });
         }
 
+        // Generate admin token
         const token = generateToken({
             username,
             role: 'admin',
@@ -358,7 +217,7 @@ router.post('/admin/login', authLimiter, async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('ADMIN_LOGIN_ERROR', { error: error.message });
+        console.error('Admin login error:', error.message);
         res.status(500).json({
             error: 'Login failed',
             message: error.message,

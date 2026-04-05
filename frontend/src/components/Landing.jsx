@@ -42,15 +42,15 @@ export default function Landing() {
 
           <div className="surface-card" style={{ marginTop: '48px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--ink)' }}>Live Turnout</span>
-                <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--brand)' }}>{(totalVotes / 4230 * 100).toFixed(1)}%</span>
+              <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--ink)' }}>Live Turnout</span>
+              <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--brand)' }}>{(totalVotes / 4230 * 100).toFixed(1)}%</span>
             </div>
             <div style={{ height: '16px', background: 'var(--line-soft)', borderRadius: '999px', overflow: 'hidden', marginBottom: '16px' }}>
-                <div style={{ width: `${(totalVotes / 4230 * 100)}%`, height: '100%', background: 'var(--brand)', borderRadius: '999px', transition: 'width 1s ease-out' }}></div>
+              <div style={{ width: `${(totalVotes / 4230 * 100)}%`, height: '100%', background: 'var(--brand)', borderRadius: '999px', transition: 'width 1s ease-out' }}></div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-muted)', fontSize: '0.9rem' }}>
-                <span>{totalVotes.toLocaleString()} of 4,230 classmates have voted</span>
-                <span>Polls close in 4h 22m</span>
+              <span>{totalVotes.toLocaleString()} of 4,230 classmates have voted</span>
+              <span>Polls close in 4h 22m</span>
             </div>
           </div>
         </div>
@@ -98,12 +98,7 @@ export default function Landing() {
           </div>
 
           <div className="operator-strip">
-            <span 
-              className="operator-pill" 
-              onClick={() => navigate('/app/observer', { state: { tab: 'ml' } })}
-              style={{ cursor: 'pointer' }}
-              title="Click to view live ML metrics"
-            >
+            <span className="operator-pill">
               <span className="operator-pill__dot" />
               Fraud monitoring: Healthy <span className="status-cursor" />
             </span>
@@ -122,9 +117,9 @@ export default function Landing() {
               As a voter, you will authenticate via a secure terminal using localized biometric matching. No personal biometric data is stored or transmitted beyond the verification step.
             </p>
             <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button 
-                type="button" 
-                className="button button--primary" 
+              <button
+                type="button"
+                className="button button--primary"
                 onClick={() => {
                   localStorage.setItem('campusvote_visited', 'true')
                   setShowWelcome(false)

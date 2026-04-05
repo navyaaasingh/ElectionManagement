@@ -4,12 +4,11 @@
  */
 
 const { Voter, Election, Candidate, VotingRecord } = require('../models/index.js');
-const { sequelize } = require('../db/index.js');
-const fabricService  = require('./fabricService.js');
-const zkpService     = require('./zkpService.js');
-const logger         = require('../utils/logger.js');
-const AuditLog       = require('../models/auditLog.model.js');
-const crypto         = require('crypto');
+const fabricService = require('./fabricService.js');
+const zkpService = require('./zkpService.js');
+const logger = require('../utils/logger.js');
+const AuditLog = require('../models/auditLog.model.js');
+const crypto = require('crypto');
 
 class VoteService {
     /**
@@ -105,42 +104,26 @@ class VoteService {
             }
 
             // 7. Record in database (only fields defined in VotingRecord model)
-            // Use a transaction to ensure vote recording, tallying, and voter lock are atomic
-            const t = await sequelize.transaction();
-            try {
-                await VotingRecord.create({
-                    voter_id:          voterId,
-                    election_id:       electionId,
-                    terminal_id:       terminalId,
-                    verification_hash: verificationHash,
-                    blockchain_tx_id:  blockchainTxId,
-                    vote_timestamp:    new Date(timestamp || Date.now()),
-                }, { transaction: t });
+            await VotingRecord.create({
+                voter_id: voterId,
+                election_id: electionId,
+                terminal_id: terminalId,
+                verification_hash: verificationHash,
+                blockchain_tx_id: blockchainTxId,
+                vote_timestamp: new Date(timestamp || Date.now()),
+            });
 
-                // 8. Mark voter as having voted
-                await Voter.update(
-                    { has_voted: true },
-                    { where: { voter_id: voterId }, transaction: t }
-                );
-
-                // Increment candidate votes
-                await Candidate.increment('votes_received', {
-                    by: 1,
-                    where: { candidate_id: candidateId },
-                    transaction: t
-                });
-
-                await t.commit();
-            } catch (dbError) {
-                await t.rollback();
-                throw new Error('Database transaction failed during vote casting: ' + dbError.message);
-            }
+            // 8. Mark voter as having voted
+            await Voter.update(
+                { has_voted: true },
+                { where: { voter_id: voterId } }
+            );
 
             // 9. Generate receipt
             const receipt = this.generateReceipt({
                 voteId,
                 electionId,
-                timestamp:      timestamp || Date.now(),
+                timestamp: timestamp || Date.now(),
                 blockchainTxId,
                 verificationHash,
                 zkpCommitment
@@ -150,17 +133,11 @@ class VoteService {
             try {
                 const { publishTelemetry } = require('./kafkaProducer.js');
                 await publishTelemetry('election-telemetry', 'VOTE_CAST', {
-                    voteId,
-                    voterId,
-                    electionId,
-                    candidateId,
-                    terminalId,
-                    districtId,
-                    timestamp: timestamp || new Date().toISOString()
+                    voterId, electionId, candidateId,
+                    district: districtId, terminalId,
+                    timestamp: timestamp || Date.now(), voteId
                 });
-            } catch (err) {
-                logger.debug('Kafka telemetry failed (expected if in mock mode)', { error: err.message });
-            }
+            } catch { /* Kafka optional */ }
 
             try {
                 const { broadcastMessage } = require('./websocket.service.js');
@@ -171,13 +148,13 @@ class VoteService {
             try {
                 await AuditLog.create({
                     event_type: 'VOTE_CAST',
-                    user_id:    voterId,
+                    user_id: voterId,
                     metadata: {
-                        vote_id:      voteId,
-                        election_id:  electionId,
-                        terminal_id:  terminalId,
+                        vote_id: voteId,
+                        election_id: electionId,
+                        terminal_id: terminalId,
                         blockchain_tx: blockchainTxId,
-                        receipt_id:   receipt.receiptId,
+                        receipt_id: receipt.receiptId,
                     }
                 });
             } catch { /* audit non-fatal */ }
@@ -196,9 +173,9 @@ class VoteService {
             try {
                 await AuditLog.create({
                     event_type: 'VOTE_CAST_FAILED',
-                    user_id:    voterId,
-                    severity:   'HIGH',
-                    metadata:   { election_id: electionId, terminal_id: terminalId, error: error.message }
+                    user_id: voterId,
+                    severity: 'HIGH',
+                    metadata: { election_id: electionId, terminal_id: terminalId, error: error.message }
                 });
             } catch { /* audit non-fatal */ }
 
@@ -287,13 +264,13 @@ class VoteService {
             return {
                 verified: true,
                 vote: {
-                    voteId:           record.record_id,
-                    electionId:       record.election_id,
-                    timestamp:        record.vote_timestamp,
-                    blockchainTxId:   record.blockchain_tx_id,
-                    terminalId:       record.terminal_id,
+                    voteId: record.record_id,
+                    electionId: record.election_id,
+                    timestamp: record.vote_timestamp,
+                    blockchainTxId: record.blockchain_tx_id,
+                    terminalId: record.terminal_id,
                     integrityVerified,
-                    blockNumber:      blockchainVote?.blockNumber || null,
+                    blockNumber: blockchainVote?.blockNumber || null,
                 }
             };
 

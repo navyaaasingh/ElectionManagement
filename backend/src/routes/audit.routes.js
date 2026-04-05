@@ -1,7 +1,6 @@
 const express = require('express');
 const AuditLog = require('../models/auditLog.model.js');
 const { authenticate, authorize } = require('../middleware/auth.middleware.js');
-const logger = require('../utils/logger.js');
 const router = express.Router();
 
 /**
@@ -57,7 +56,7 @@ router.get('/', authenticate, authorize(['admin', 'observer']), async (req, res)
             },
         });
     } catch (error) {
-        logger.error('Error fetching audit logs:', error);
+        console.error('Error fetching audit logs:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch audit logs',
@@ -118,7 +117,7 @@ router.get('/stats', authenticate, authorize(['admin']), async (req, res) => {
             stats,
         });
     } catch (error) {
-        logger.error('Error fetching audit stats:', error);
+        console.error('Error fetching audit stats:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch audit statistics',
@@ -153,7 +152,7 @@ router.get('/voter/:voterId', authenticate, authorize(['admin']), async (req, re
             count: logs.length,
         });
     } catch (error) {
-        logger.error('Error fetching voter audit logs:', error);
+        console.error('Error fetching voter audit logs:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to fetch voter audit logs',
@@ -195,7 +194,7 @@ router.post('/', authenticate, async (req, res) => {
             logId: auditLog._id,
         });
     } catch (error) {
-        logger.error('Error creating audit log:', error);
+        console.error('Error creating audit log:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to create audit log',
@@ -210,12 +209,10 @@ router.post('/', authenticate, async (req, res) => {
  * @access  Internal (ML service) — validated by ML_SERVICE_API_KEY header
  */
 router.post('/alerts', async (req, res) => {
-    // 1. Internal API Key validation
+    // Lightweight internal-only auth — the ML consumer sends a shared secret
     const internalKey = req.headers['x-ml-api-key'];
     const expectedKey = process.env.ML_SERVICE_API_KEY || 'ml-internal-secret';
-    
     if (internalKey !== expectedKey) {
-        logger.warn('Unauthorized ML alert attempt rejected from IP:', req.ip);
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
@@ -234,63 +231,52 @@ router.post('/alerts', async (req, res) => {
             detectedAt,
         } = req.body;
 
-        logger.warn(`🚨 Incoming Fraud Alert: Voter=${voterId} | Severity=${severity} | Conf=${confidence}`);
-
-        // 2. Persist as audit log in MongoDB (Async/Failable in dev)
-        let auditLogId = `LOCAL_${Date.now()}`;
-        try {
-            const auditLog = await AuditLog.create({
-                event_type: 'fraud_alert',
-                user_id: voterId || 'ml-service',
-                terminal_id: terminalId,
-                election_id: electionId,
-                action: alertType || 'FRAUD_DETECTED',
-                ip_address: req.ip,
-                user_agent: 'ml-kafka-consumer',
-                status: 'failure',
-                details: {
-                    voteId,
-                    district,
-                    reason,
-                    confidence,
-                    anomalyScore,
-                    detectedAt,
-                },
-                error_message: reason,
-            });
-            auditLogId = auditLog._id;
-        } catch (dbErr) {
-            logger.warn('⚠️  Could not persist alert to MongoDB:', dbErr.message);
-            // We continue anyway to ensure the real-time dashboard gets the signal
-        }
-
-        // 3. Broadcast alert to all connected WebSocket clients (dashboards)
-        try {
-            const { broadcastMessage } = require('../services/websocket.service.js');
-            broadcastMessage('FRAUD_ALERT', {
-                alertId: auditLogId,
-                severity: severity || 'MEDIUM',
-                alertType: alertType || 'FRAUD_DETECTED',
-                voterId,
+        // Persist as audit log in MongoDB
+        const auditLog = await AuditLog.create({
+            eventType: alertType || 'FRAUD_DETECTED',
+            userId: voterId || 'ml-service',
+            ipAddress: req.ip,
+            userAgent: 'ml-kafka-consumer',
+            success: false,
+            metadata: {
+                voteId,
                 terminalId,
                 district,
                 electionId,
                 reason,
                 confidence,
                 anomalyScore,
-                detectedAt: detectedAt || new Date().toISOString(),
+                detectedAt,
+            },
+            errorMessage: reason,
+        });
+
+        // Broadcast alert to all connected WebSocket clients (dashboards)
+        try {
+            const { broadcastMessage } = require('../services/websocket.service.js');
+            broadcastMessage('FRAUD_ALERT', {
+                alertId: auditLog._id,
+                severity,
+                alertType,
+                voterId,
+                terminalId,
+                district,
+                electionId,
+                reason,
+                confidence,
+                detectedAt,
             });
         } catch (wsErr) {
-            logger.warn('WebSocket broadcast for alert failed:', wsErr.message);
+            console.warn('WebSocket broadcast for alert failed:', wsErr.message);
         }
 
         res.status(201).json({
             success: true,
-            message: 'Alert broadcasted',
-            alertId: auditLogId,
+            message: 'Alert recorded and broadcasted',
+            alertId: auditLog._id,
         });
     } catch (error) {
-        logger.error('Error recording fraud alert:', error);
+        console.error('Error recording fraud alert:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to record alert',
@@ -300,4 +286,3 @@ router.post('/alerts', async (req, res) => {
 });
 
 module.exports = router;
-
