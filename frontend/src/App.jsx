@@ -16,7 +16,7 @@ import SignupPage from './components/SignupPage.jsx'
 import DemoPage from './components/DemoPage.jsx'
 import NotFound from './components/NotFound.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import { Menu, X, Sun, Moon } from 'lucide-react'
+import { Menu, X, Sun, Moon, User, Settings, LogOut, ChevronDown } from 'lucide-react'
 import { getStoredAdmin, getStoredVoter, logout } from './api/auth.js'
 import './index.css'
 const ROLE_TABS = [
@@ -54,6 +54,7 @@ function WorkspaceShell() {
   const navigate = useNavigate()
   const [theme, setTheme] = useState(() => localStorage.getItem('campusvote-theme') || 'light')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [user, setUser] = useState(null)
 
   useEffect(() => {
@@ -127,22 +128,53 @@ function WorkspaceShell() {
                 {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
               </button>
               <div style={{ width: '1px', height: '20px', background: 'var(--line-strong)', margin: '0 4px' }} />
-              <div 
-                className="user-chip" 
-                onClick={() => {
-                  logout()
-                  setUser(null)
-                  navigate('/')
-                }}
-                style={{ cursor: 'pointer', gap: '8px' }}
-                title="Click to sign out"
-              >
-                <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--brand), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
-                  {user ? (user.username?.[0] || user.fullName?.[0] || 'U').toUpperCase() : '?'}
+              <div className="user-dropdown-wrapper" style={{ position: 'relative' }}>
+                <div 
+                  className={`user-chip ${isUserMenuOpen ? 'is-active' : ''}`}
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  style={{ cursor: 'pointer', gap: '8px' }}
+                >
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--brand), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
+                    {user ? (user.username?.[0] || user.fullName?.[0] || 'U').toUpperCase() : '?'}
+                  </div>
+                  <span style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.85rem', fontWeight: 600 }}>
+                    {user ? (user.username || user.fullName || user.voterId) : 'Account'}
+                  </span>
+                  <ChevronDown size={14} style={{ opacity: 0.5 }} />
                 </div>
-                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user ? (user.username || user.fullName || user.voterId) : 'Sign out'}
-                </span>
+
+                {isUserMenuOpen && (
+                  <div className="user-menu-dropdown" style={{ 
+                    position: 'absolute', 
+                    top: '100%', 
+                    right: 0, 
+                    marginTop: '8px',
+                    width: '200px',
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--line-soft)',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-lg)',
+                    zIndex: 100,
+                    overflow: 'hidden',
+                    padding: '4px'
+                  }}>
+                    <button type="button" className="menu-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate('/app/profile'); }}>
+                      <User size={16} /> <span>My Profile</span>
+                    </button>
+                    <button type="button" className="menu-dropdown-item" onClick={() => { setIsUserMenuOpen(false); navigate('/app/settings'); }}>
+                      <Settings size={16} /> <span>Security Settings</span>
+                    </button>
+                    <div style={{ height: '1px', background: 'var(--line-soft)', margin: '4px 8px' }} />
+                    <button type="button" className="menu-dropdown-item menu-dropdown-item--danger" onClick={() => {
+                        setIsUserMenuOpen(false);
+                        logout();
+                        setUser(null);
+                        navigate('/');
+                      }}>
+                      <LogOut size={16} /> <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

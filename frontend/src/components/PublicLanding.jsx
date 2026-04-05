@@ -132,7 +132,7 @@ export default function PublicLanding() {
 
         <StaggerContainer delay={0.6} className="public-hero__actions">
           <StaggerItem>
-            <AnimatedButton className="button button--primary" onClick={() => window.location.href='mailto:sales@campusvote.com?subject=Institutional Deploy Request'}>
+            <AnimatedButton className="button button--primary" onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Institutional Deploy Request'}>
               Deploy at my university &rarr;
             </AnimatedButton>
           </StaggerItem>
@@ -352,7 +352,7 @@ export default function PublicLanding() {
               <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Blockchain receipts</li>
               <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Basic audit logs</li>
             </ul>
-            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }}>Get Started</AnimatedButton>
+            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }} onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Single Election Inquiry'}>Get Started</AnimatedButton>
           </div>
           
           <div className="surface-card" style={{ padding: '40px', background: 'var(--surface-1)', border: '2px solid var(--brand)', position: 'relative', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)' }}>
@@ -368,7 +368,7 @@ export default function PublicLanding() {
               <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Priority biometric support</li>
               <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> API access for SSO</li>
             </ul>
-            <AnimatedButton className="button button--primary" style={{ marginTop: '32px', width: '100%' }}>Deploy Campus-wide</AnimatedButton>
+            <AnimatedButton className="button button--primary" style={{ marginTop: '32px', width: '100%' }} onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Campus-wide Deployment'}>Deploy Campus-wide</AnimatedButton>
           </div>
 
           <div className="surface-card" style={{ padding: '40px', border: '1px solid var(--line-soft)', display: 'flex', flexDirection: 'column' }}>
@@ -382,7 +382,7 @@ export default function PublicLanding() {
               <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Dedicated infrastructure</li>
               <li style={{ display: 'flex', gap: '8px', fontSize: '1.1rem', marginTop: '8px' }}>Institutional volume</li>
             </ul>
-            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }}>Contact Sales</AnimatedButton>
+            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }} onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Enterprise Inquiry'}>Contact Sales</AnimatedButton>
           </div>
         </div>
       </section>
@@ -483,10 +483,10 @@ export default function PublicLanding() {
             Schedule a platform walkthrough with our enterprise team and see why institutions are moving to biometric-first elections.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '32px' }}>
-            <AnimatedButton className="button" style={{ background: 'white', color: 'var(--brand)' }}>
+            <AnimatedButton className="button" style={{ background: 'white', color: 'var(--brand)' }} onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Schedule a Walkthrough'}>
               Schedule a Demo
             </AnimatedButton>
-            <AnimatedButton className="button" style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}>
+            <AnimatedButton className="button" style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }} onClick={() => window.location.href='mailto:enterprise@campusvote.io?subject=Enterprise Inquiry'}>
               Contact Sales
             </AnimatedButton>
           </div>
@@ -499,9 +499,9 @@ export default function PublicLanding() {
             <strong>CampusVote</strong>
             <span>Secure digital election platform for universities.</span>
             <div style={{ marginTop: '24px', display: 'flex', gap: '16px' }}>
-              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="LinkedIn"><Globe size={20} /></a>
-              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="Privacy"><Shield size={20} /></a>
-              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="Security"><Lock size={20} /></a>
+              <a href="https://linkedin.com/company/campusvote" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--ink-soft)' }} aria-label="LinkedIn"><Globe size={20} /></a>
+              <button type="button" onClick={() => navigate('/privacy')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--ink-soft)', cursor: 'pointer' }} aria-label="Privacy"><Shield size={20} /></button>
+              <button type="button" onClick={() => navigate('/terms')} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--ink-soft)', cursor: 'pointer' }} aria-label="Security"><Lock size={20} /></button>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>

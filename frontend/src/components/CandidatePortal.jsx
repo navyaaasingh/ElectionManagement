@@ -25,6 +25,7 @@ export default function CandidatePortal() {
     phone: '',
     manifesto: '',
   })
+  const [lastSaved, setLastSaved] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -51,14 +52,36 @@ export default function CandidatePortal() {
     }
 
     load()
+
+    // Load draft from localStorage
+    const savedDraft = localStorage.getItem('candidate_application_draft')
+    if (savedDraft) {
+      try {
+        setForm(JSON.parse(savedDraft))
+        setLastSaved(new Date().toLocaleTimeString())
+      } catch (e) {
+        console.error('Failed to load draft:', e)
+      }
+    }
+
     return () => {
       cancelled = true
     }
   }, [])
 
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      localStorage.setItem('candidate_application_draft', JSON.stringify(form))
+      setLastSaved(new Date().toLocaleTimeString())
+    }, 1000)
+
+    return () => clearTimeout(timeoutId)
+  }, [form])
+
   const eligible = useMemo(() => {
     const cgpa = Number(form.cgpa)
-    return Boolean(form.name && form.studentId && form.department && cgpa >= 7)
+    return Boolean(form.name && form.studentId && form.department && cgpa >= 7 && form.manifesto.length >= 100)
   }, [form])
 
   async function handleSubmit(event) {
@@ -85,6 +108,7 @@ export default function CandidatePortal() {
       ])
       setStatus('success')
       setTab('status')
+      localStorage.removeItem('candidate_application_draft')
       setForm({
         name: '',
         studentId: '',
@@ -95,6 +119,7 @@ export default function CandidatePortal() {
         phone: '',
         manifesto: '',
       })
+      setLastSaved(null)
     } catch (err) {
       setStatus({ error: err.message || 'Application submission failed.' })
     }
@@ -195,8 +220,22 @@ export default function CandidatePortal() {
                 </select>
               </label>
               <label>
-                <span className="field-label">CGPA</span>
-                <input className="field-input" value={form.cgpa} onChange={(e) => setForm({ ...form, cgpa: e.target.value })} />
+                <span className="field-label">CGPA (0.00 - 10.00)</span>
+                <input 
+                  className="field-input" 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="10"
+                  placeholder="e.g. 8.45"
+                  value={form.cgpa} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || (Number(val) >= 0 && Number(val) <= 10)) {
+                      setForm({ ...form, cgpa: val })
+                    }
+                  }} 
+                />
               </label>
             </div>
 
@@ -212,9 +251,28 @@ export default function CandidatePortal() {
             </div>
 
             <label>
-              <span className="field-label">Manifesto</span>
-              <textarea className="field-input field-input--textarea" value={form.manifesto} onChange={(e) => setForm({ ...form, manifesto: e.target.value })} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span className="field-label">Campaign Manifesto</span>
+                <span style={{ fontSize: '0.75rem', color: form.manifesto.length < 100 ? '#b91c1c' : '#64748b' }}>
+                  {form.manifesto.length} / 2000 chars {form.manifesto.length < 100 && '(Min 100 required)'}
+                </span>
+              </div>
+              <textarea 
+                className="field-input field-input--textarea" 
+                placeholder="Describe your vision, goals, and why students should vote for you..."
+                maxLength="2000"
+                value={form.manifesto} 
+                onChange={(e) => setForm({ ...form, manifesto: e.target.value })} 
+              />
             </label>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '12px 0' }}>
+              {lastSaved && (
+                <span style={{ fontSize: '0.7rem', color: '#64748b', fontStyle: 'italic' }}>
+                  Draft auto-saved at {lastSaved}
+                </span>
+              )}
+            </div>
 
             {status === 'success' ? <div className="surface-note surface-note--success">Application submitted for review.</div> : null}
             {status?.error ? <div className="surface-note surface-note--warning">{status.error}</div> : null}

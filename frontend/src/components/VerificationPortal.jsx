@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { verifyReceipt } from '../api/votes.js'
+import { motion, AnimatePresence } from 'framer-motion'
 
 
 
@@ -41,20 +42,46 @@ export default function VerificationPortal() {
       </div>
 
       <form className="surface-card form-card" onSubmit={handleVerify}>
-        <label className="field-label" htmlFor="receipt-id">Receipt ID</label>
-        <input
-          id="receipt-id"
-          className="field-input"
-          value={receiptId}
-          onChange={(event) => setReceiptId(event.target.value)}
-          placeholder="Enter receipt hash or verification ID"
-        />
-        <button type="submit" className="button button--primary" disabled={loading || !receiptId.trim()}>
-          {loading ? 'Verifying receipt' : 'Verify receipt'}
+        <div style={{ marginBottom: '24px' }}>
+          <label className="field-label" htmlFor="receipt-id">Receipt ID</label>
+          <input
+            id="receipt-id"
+            className="field-input"
+            value={receiptId}
+            onChange={(event) => {
+              const val = event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+              setReceiptId(val);
+            }}
+            placeholder="e.g. VOTE-XXXX-XXXX"
+            style={{ fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '0.05em' }}
+          />
+          <p style={{ marginTop: '12px', fontSize: '0.85rem', color: 'var(--ink-muted)', lineHeight: 1.5 }}>
+            Your Receipt ID is printed on your physical slip or displayed on the terminal after voting. 
+            <strong> It is a 12-character alphanumeric code.</strong>
+          </p>
+        </div>
+        
+        <button 
+          type="submit" 
+          className="button button--primary" 
+          disabled={loading || receiptId.length < 8}
+          style={{ width: '100%', padding: '16px' }}
+        >
+          {loading ? 'Querying Blockchain...' : 'Verify Receipt Integrity'}
         </button>
       </form>
 
-      {error ? <div className="surface-note surface-note--warning">{error}</div> : null}
+      {error ? (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="surface-note surface-note--warning"
+          style={{ padding: '20px', borderRadius: '16px' }}
+        >
+          <strong style={{ display: 'block', marginBottom: '8px' }}>Verification Error</strong>
+          {error}
+        </motion.div>
+      ) : null}
 
       {result ? (
         <div className="surface-card">

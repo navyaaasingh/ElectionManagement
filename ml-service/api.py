@@ -8,7 +8,7 @@ Flask API for ML Fraud Detection Service
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
-from fraud_detector import analyze_vote, get_detector
+from fraud_detector import analyze_vote, get_detector, MOCK_MODE
 import os
 
 
@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 def health_check():
     """Health check endpoint"""
     return jsonify({
-        'status': 'healthy',
+        'status': 'healthy' if not MOCK_MODE else 'degraded',
+        'mode': 'MOCK' if MOCK_MODE else 'REAL',
         'service': 'ml-fraud-detection',
         'version': '1.0.0',
     })
@@ -188,6 +189,10 @@ def batch_analyze():
 
 
 # %%
-if __name__ == '__main__':
     port = int(os.getenv('ML_SERVICE_PORT', 5000))
+    if MOCK_MODE:
+        logger.warning("!!! ML SERVICE STARTING IN MOCK MODE !!!")
+        logger.warning("Heuristic fallback will be used for fraud detection.")
+    else:
+        logger.info("ML Service starting in REAL mode (Ensemble loaded).")
     app.run(host='0.0.0.0', port=port, debug=False)

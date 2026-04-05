@@ -15,42 +15,44 @@ const LOCALES = [
 
 const COPY = {
   en: {
-    welcome: 'It takes 2 minutes. Your vote is anonymous. Your receipt is permanent.',
-    intro: "Tap below to verify your identity with a quick biometric scan — then cast your ballot. You'll get a unique receipt you can verify anytime, forever.",
-    start: 'Start biometric scan',
-    scanning: 'Scanning fingerprint',
-    scanHint: 'Place your finger firmly on the sensor. Your biometric data is never stored; we generate a one-time cryptographic hash for privacy.',
-    verified: 'Identity verified',
-    continue: 'Start voting',
-    choose: 'Choose your candidate',
-    change: 'Change choice',
-    confirm: 'Confirm your vote',
-    casting: 'Securing vote on the blockchain',
-    receipt: 'Vote recorded',
-    done: 'Finish',
-    back: 'Back',
-    noCandidates: 'No candidates are available for the active election.',
-    loadingCandidates: 'Loading candidates',
-    demo: 'Demo mode fallback',
+    welcome: 'Secure Polling Station. Identity check takes < 2 minutes.',
+    intro: "Place your institutional smart card or use the biometric scanner below to verify your eligibility. Your record will be pseudonymized for total anonymity.",
+    start: 'Initialize Biometric Scan',
+    scanning: 'Verifying Identity...',
+    scanHint: 'Place your finger firmly on the biometric sensor. Your raw data is never stored; we generate a one-time cryptographic proof of eligibility.',
+    verified: 'Identity Securely Verified',
+    continue: 'Cast My Ballot',
+    choose: 'Official Candidate Selection',
+    change: 'Revise Selection',
+    confirm: 'Confirm Official Ballot',
+    casting: 'Securing encrypted ballot on the blockchain...',
+    receipt: 'Electronic Ballot Receipt Generated',
+    done: 'End Session',
+    back: 'Previous Step',
+    noCandidates: 'No registered candidates found for this district.',
+    loadingCandidates: 'Polling candidate database...',
+    demo: 'Institutional Demo Environment',
+    retry: 'Retry Verification',
   },
   hi: {
-    welcome: 'मतदान के लिए तैयार',
-    intro: 'सारा टर्मिनल फ्लो अब एक ही फ्रंटेंड में है।',
+    welcome: 'सुरक्षित मतदान केंद्र। पहचान जांच में 2 मिनट से कम समय लगता है।',
+    intro: 'अपनी पात्रता सत्यापित करने के लिए नीचे दिए गए बायोमेट्रिक स्कैनर का उपयोग करें। आपकी गोपनीयता के लिए आपका रिकॉर्ड सुरक्षित रखा जाएगा।',
     start: 'बायोमेट्रिक स्कैन शुरू करें',
-    scanning: 'फिंगरप्रिंट स्कैन हो रहा है',
-    scanHint: 'अपनी उंगली सेंसर पर स्थिर रखें।',
-    verified: 'पहचान सत्यापित',
-    continue: 'मतदान शुरू करें',
-    choose: 'उम्मीदवार चुनें',
+    scanning: 'पहचान सत्यापित की जा रही है...',
+    scanHint: 'अपनी उंगली बायोमेट्रिक सेंसर पर मजबूती से रखें। आपका मूल डेटा कभी भी संग्रहीत नहीं किया जाता है।',
+    verified: 'पहचान सफलतापूर्वक सत्यापित',
+    continue: 'अपना वोट डालें',
+    choose: 'आधिकारिक उम्मीदवार चयन',
     change: 'चयन बदलें',
-    confirm: 'अपना वोट पुष्टि करें',
-    casting: 'ब्लॉकचेन पर वोट दर्ज हो रहा है',
-    receipt: 'वोट दर्ज हो गया',
-    done: 'समाप्त',
-    back: 'वापस',
-    noCandidates: 'सक्रिय चुनाव के लिए कोई उम्मीदवार उपलब्ध नहीं है।',
-    loadingCandidates: 'उम्मीदवार लोड हो रहे हैं',
-    demo: 'डेमो मोड',
+    confirm: 'आधिकारिक मत की पुष्टि करें',
+    casting: 'ब्लॉकचेन पर सुरक्षित रूप से मत दर्ज किया जा रहा है...',
+    receipt: 'इलेक्ट्रॉनिक मत पर्ची तैयार',
+    done: 'सत्र समाप्त करें',
+    back: 'पीछे',
+    noCandidates: 'इस जिले के लिए कोई पंजीकृत उम्मीदवार नहीं मिला।',
+    loadingCandidates: 'उम्मीदवार डेटाबेस की जांच की जा रही है...',
+    demo: 'संस्थागत डेमो वातावरण',
+    retry: 'पुनः प्रयास करें',
   },
   ta: {
     welcome: 'வாக்களிக்க தயாராகுங்கள்',
@@ -301,7 +303,7 @@ export default function VoterUI() {
   }, [locale, state.step])
 
   useEffect(() => {
-    if (state.step !== 'scan') return undefined
+    if (state.step !== 'scan' || state.error) return undefined
 
     let cancelled = false
 
@@ -577,9 +579,21 @@ export default function VoterUI() {
                 transition={{ duration: 1, repeat: Infinity }}
                 className="dot" 
               />
-              {loading ? currentText('scanning') : currentText('start')}
+              {loading ? currentText('scanning') : (state.error ? 'Verification Interrupted' : currentText('start'))}
             </div>
-            <p className="terminal-subtle" style={{ fontSize: '1rem' }}>{currentText('scanHint')}</p>
+            <p className="terminal-subtle" style={{ fontSize: '1rem', maxWidth: '400px', margin: '0 auto' }}>
+              {state.error ? 'The system encountered an error communicating with the institutional identity server.' : currentText('scanHint')}
+            </p>
+            {state.error && (
+              <AnimatedButton
+                type="button" 
+                className="terminal-primary"
+                style={{ marginTop: '24px' }}
+                onClick={() => setState(c => ({ ...c, error: null, note: null }))}
+              >
+                {currentText('retry')}
+              </AnimatedButton>
+            )}
           </motion.section>
         )}
 

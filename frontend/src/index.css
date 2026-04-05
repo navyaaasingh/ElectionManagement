@@ -398,6 +398,44 @@ a {
   min-height: 36px;
   display: inline-flex;
   align-items: center;
+  transition: all 0.2s ease;
+}
+
+.user-chip:hover, .user-chip.is-active {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.menu-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.menu-dropdown-item:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.menu-dropdown-item--danger {
+  color: var(--danger);
+}
+
+.menu-dropdown-item--danger:hover {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
 }
 
 .app-primary-action,

@@ -3,6 +3,7 @@ import { adminLogin, getStoredAdmin, logout } from '../api/auth.js'
 import { getAuditLogs, getVoters } from '../api/admin.js'
 import { createElection, getCandidates, getElections, updateElectionStatus } from '../api/elections.js'
 import { getMlHealth } from '../api/ml.js'
+import { summarizeElections } from '../lib/electionSnapshot.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
 
@@ -92,13 +93,11 @@ export default function AdminPage() {
   }, [admin])
 
   const dashboardStats = useMemo(() => {
-    const active = elections.filter((election) => election.status === 'active')
-    const totalVotes = elections.reduce((sum, election) => sum + (election.total_votes_cast || 0), 0)
-    const totalVoters = elections.reduce((sum, election) => sum + (election.total_voters || 0), 0)
+    const summary = summarizeElections(elections)
     return {
-      activeCount: active.length,
-      totalVotes: totalVotes.toLocaleString(),
-      turnout: totalVoters ? `${((totalVotes / totalVoters) * 100).toFixed(1)}%` : 'NA',
+      activeCount: summary.activeCount,
+      totalVotes: summary.totalVotes.toLocaleString(),
+      turnout: summary.turnoutLabel,
     }
   }, [elections])
 

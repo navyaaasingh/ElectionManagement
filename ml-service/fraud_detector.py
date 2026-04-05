@@ -11,25 +11,33 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
-import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-import joblib
 
-# %%
-import xgboost as xgb
-# Suppress noisy TF logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Input
-
-# %%
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Mock Mode detection
+MOCK_MODE = False
+
+try:
+    import numpy as np
+    from sklearn.ensemble import IsolationForest
+    from sklearn.preprocessing import StandardScaler
+    import joblib
+    import xgboost as xgb
+    # Suppress noisy TF logs
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    from tensorflow.keras.models import Sequential, load_model
+    from tensorflow.keras.layers import LSTM, Dense, Input
+except (ImportError, RuntimeError, Exception) as e:
+    MOCK_MODE = True
+    # Provide dummy types for type hinting if needed
+    np = None
+    StandardScaler = lambda: None
+    logger.warning(f"ML libraries missing or failed to load ({e}). Entering MOCK_MODE.")
 
 
 # %%
@@ -60,8 +68,11 @@ class FraudDetector:
         self.load_models()
 
         # If not fully loaded, init with placeholders
-        if not self.is_initialized:
+        if not self.is_initialized and not MOCK_MODE:
             self._initialize_placeholders()
+        elif MOCK_MODE:
+            self.is_initialized = True
+            logger.info("FraudDetector initialized in MOCK_MODE (Heuristic fallback).")
 
     def _initialize_placeholders(self):
         """Build models with random/placeholder weights until actual data is trained"""
@@ -94,8 +105,11 @@ class FraudDetector:
         self.is_initialized = True
         logger.info("Ensemble initialized with default parameters.")
 
-    def extract_features(self, vote_data: Dict, historical_data: List[Dict]) -> np.ndarray:
+    def extract_features(self, vote_data: Dict, historical_data: List[Dict]):
         """Extract flat 1D feature array (length 6) for Isolation Forest and XGBoost."""
+        if MOCK_MODE:
+            return [0] * 6 # Dummy list for mock mode logic
+
         features = []
         
         vote_time = datetime.fromisoformat(vote_data.get('timestamp', datetime.now().isoformat()))
@@ -131,8 +145,11 @@ class FraudDetector:
         
         return np.array(features).reshape(1, -1)
         
-    def extract_sequence_features(self, vote_data: Dict, historical_data: List[Dict], sequence_length: int = 5) -> np.ndarray:
+    def extract_sequence_features(self, vote_data: Dict, historical_data: List[Dict], sequence_length: int = 5):
         """Extract a 3D tensor sequence of shape (1, sequence_length, 6) for LSTM."""
+        if MOCK_MODE:
+            return [[0] * 6] * sequence_length
+
         # Find the last `sequence_length - 1` historical votes
         recent = sorted(historical_data, key=lambda x: x.get('timestamp', ''))[-(sequence_length-1):]
         # Append current vote
@@ -207,6 +224,39 @@ class FraudDetector:
         logger.info("Ensemble training complete")
 
     def predict(self, vote_data: Dict, historical_data: List[Dict]) -> Dict:
+        if MOCK_MODE:
+            # Simple heuristic detection for mock mode
+            terminal_id = vote_data.get('terminalId', '')
+            vote_time = datetime.fromisoformat(vote_data.get('timestamp', datetime.now().isoformat()))
+            five_min_ago = vote_time.timestamp() - 300
+            
+            recent_on_terminal = [
+                v for v in historical_data 
+                if v.get('terminalId') == terminal_id and 
+                datetime.fromisoformat(v.get('timestamp', '2000-01-01')).timestamp() > five_min_ago
+            ]
+            
+            # Detect burst: more than 10 votes in 5 mins on one terminal
+            is_fraudulent = len(recent_on_terminal) > 10
+            confidence = 0.85 if is_fraudulent else 0.05
+            
+            result = {
+                'isFraudulent': is_fraudulent,
+                'confidence': confidence,
+                'details': {
+                    'isolationForestScore': 0.0,
+                    'xgboostScore': 0.0,
+                    'lstmScore': 0.0,
+                    'isMock': True
+                },
+                'anomalyScore': float(confidence * 10),
+                'reason': "Mock Detection: Terminal burst detected" if is_fraudulent else "Normal voting pattern",
+                'timestamp': datetime.now().isoformat(),
+            }
+            if is_fraudulent:
+                logger.warning(f"🚨 MOCK FRAUD DETECTED: {result}")
+            return result
+
         # Extract features
         flat_feats = self.extract_features(vote_data, historical_data)
         seq_feats = self.extract_sequence_features(vote_data, historical_data)
