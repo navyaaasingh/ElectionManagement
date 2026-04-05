@@ -34,6 +34,20 @@ router.post('/login-email', authLimiter, async (req, res) => {
         const voter = await Voter.findOne({ where: { email } });
 
         if (!voter) {
+            // Check if they are a registered student (Institutional Roll)
+            const student = await Student.findOne({ where: { email } });
+            if (student) {
+                return res.status(404).json({ 
+                    error: 'Voter record not found',
+                    code: 'VOTER_NOT_FOUND_STUDENT_EXISTS',
+                    message: `We found your student record (${student.roll_number}). Please complete your voter registration.`,
+                    student: {
+                        rollNumber: student.roll_number,
+                        fullName: student.full_name,
+                        email: student.email
+                    }
+                });
+            }
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -220,6 +234,14 @@ router.post('/passkey/login-options', async (req, res) => {
     if (!voter) return res.status(404).json({ error: 'Voter not found' });
 
     const userPasskeys = await VoterPasskey.findAll({ where: { voter_id: voter.voter_id } });
+
+    if (userPasskeys.length === 0) {
+        return res.status(400).json({ 
+            error: 'Biometric login unavailable',
+            code: 'BIOMETRIC_NOT_REGISTERED',
+            message: 'Your biometric data is not yet registered. Please log in with your institutional email and password to complete biometric registration.'
+        });
+    }
 
     const options = await generateAuthenticationOptions({
         rpID: RP_ID,

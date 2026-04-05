@@ -98,7 +98,12 @@ export default function Landing() {
           </div>
 
           <div className="operator-strip">
-            <span className="operator-pill">
+            <span 
+              className="operator-pill" 
+              onClick={() => navigate('/app/observer', { state: { tab: 'ml' } })}
+              style={{ cursor: 'pointer' }}
+              title="Click to view live ML metrics"
+            >
               <span className="operator-pill__dot" />
               Fraud monitoring: Healthy <span className="status-cursor" />
             </span>

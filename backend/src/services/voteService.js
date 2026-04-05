@@ -150,11 +150,17 @@ class VoteService {
             try {
                 const { publishTelemetry } = require('./kafkaProducer.js');
                 await publishTelemetry('election-telemetry', 'VOTE_CAST', {
-                    voterId, electionId, candidateId,
-                    district: districtId, terminalId,
-                    timestamp: timestamp || Date.now(), voteId
+                    voteId,
+                    voterId,
+                    electionId,
+                    candidateId,
+                    terminalId,
+                    districtId,
+                    timestamp: timestamp || new Date().toISOString()
                 });
-            } catch { /* Kafka optional */ }
+            } catch (err) {
+                logger.debug('Kafka telemetry failed (expected if in mock mode)', { error: err.message });
+            }
 
             try {
                 const { broadcastMessage } = require('./websocket.service.js');

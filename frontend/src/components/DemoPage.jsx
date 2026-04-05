@@ -322,7 +322,7 @@ export default function DemoPage() {
       {/* Hero Stats */}
       <StaggerContainer className="hero-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px' }}>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
                <span className="section-kicker">Total Participation</span>
                <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
                  <AnimatedCounter value={18402} />
@@ -334,7 +334,7 @@ export default function DemoPage() {
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
                <span className="section-kicker">Integrity Score</span>
                <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>
                  <AnimatedCounter value={100} suffix="/100" />
@@ -343,14 +343,14 @@ export default function DemoPage() {
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
                <span className="section-kicker">Avg. Voting Time</span>
                <div style={{ fontSize: '2.8rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>1m 42s</div>
                <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)', fontWeight: 600 }}>Optimized throughput</div>
             </motion.div>
          </StaggerItem>
          <StaggerItem>
-            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', background: 'var(--brand)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <motion.div whileHover={{ y: -4 }} className="surface-card surface-card--stat" style={{ padding: '32px', background: 'var(--brand)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', aspectRatio: '1/1' }}>
                <span className="section-kicker" style={{ color: 'rgba(255,255,255,0.7)' }}>Platform Status</span>
                <div style={{ fontSize: '2.2rem', fontWeight: 800, margin: '8px 0', lineHeight: 1 }}>SLA Tier 1</div>
                <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>99.9% Uptime Verified</div>

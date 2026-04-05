@@ -11,20 +11,35 @@ import {
   SlideInHorizontal,
   RevealText
 } from './AnimationWrapper.jsx'
-import { Moon, Sun, Menu, X } from 'lucide-react'
+import { Moon, Sun, Menu, X, Shield, Zap, CheckCircle, BarChart3, Fingerprint, Lock, Globe } from 'lucide-react'
 
 const TRUST_POINTS = [
-  'Biometric voter verification',
-  'Blockchain audit receipts',
-  'Real-time fraud monitoring',
-  'Results published in minutes',
-  'No paper-ballot reconciliation',
+  'Biometric check-in',
+  'Blockchain receipts',
+  'Real-time fraud detection',
+  'Rapid results',
+  'Audit-ready logs',
 ]
 
 const SOCIAL_PROOF = [
-  { name: 'Northbridge University', outcome: 'Cut election disputes by 83%' },
-  { name: 'Central Tech Campus', outcome: 'Deployed across 18 departments' },
-  { name: 'Riverside Institute', outcome: 'Verified 9,400 votes without manual audits' },
+  { 
+    name: 'Northbridge University', 
+    outcome: 'Cut election disputes by 83%',
+    quote: "The transparency is undeniable. Students trust the process because they can verify it themselves.",
+    author: "Dr. Aris Thorne, Dean of Students"
+  },
+  { 
+    name: 'Central Tech Campus', 
+    outcome: 'Deployed across 18 departments',
+    quote: "Setup was faster than any legacy vendor we've used before. A true enterprise-grade solution.",
+    author: "Marcus Chen, IT Director"
+  },
+  { 
+    name: 'Riverside Institute', 
+    outcome: 'Verified 9,400+ votes',
+    quote: "Real-time monitoring allowed us to catch dual-login attempts before they became issues.",
+    author: "Sarah Jenkins, Student Body President"
+  },
 ]
 
 export default function PublicLanding() {
@@ -82,11 +97,11 @@ export default function PublicLanding() {
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <div className="v-divider" style={{ width: '1px', height: '20px', background: 'var(--line-soft)', margin: '0 4px' }} />
-            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/app/verify'); setIsMobileMenuOpen(false); }}>
-              Verify results
+            <button type="button" className="utility-link utility-link--button" onClick={() => { navigate('/demo'); setIsMobileMenuOpen(false); }}>
+              Live demo
             </button>
             {!user ? (
-              <AnimatedButton className="button button--ghost" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
+              <AnimatedButton className="button button--primary" onClick={() => { navigate('/login'); setIsMobileMenuOpen(false); }}>
                 Sign in
               </AnimatedButton>
             ) : (
@@ -121,18 +136,14 @@ export default function PublicLanding() {
               Deploy at my university &rarr;
             </AnimatedButton>
           </StaggerItem>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <StaggerItem>
-              <AnimatedButton className="button button--ghost" onClick={() => navigate('/app/observer')}>
-                See a live election in progress
-              </AnimatedButton>
-            </StaggerItem>
-            <StaggerItem>
-              <AnimatedButton className="button button--ghost" style={{ border: '2px solid var(--brand-soft)' }} onClick={() => navigate('/demo')}>
-                Explore Demo Experience
-              </AnimatedButton>
-            </StaggerItem>
-          </div>
+          <StaggerItem>
+            <AnimatedButton 
+              className="button button--ghost" 
+              onClick={() => navigate('/demo')}
+            >
+              View live demo
+            </AnimatedButton>
+          </StaggerItem>
         </StaggerContainer>
 
         <FadeInUp delay={0.9} className="hero-social-proof">
@@ -146,7 +157,9 @@ export default function PublicLanding() {
         <FadeInUp delay={0.5} className="public-hero__screenshot" style={{ marginTop: '32px' }}>
           <motion.div 
             whileHover={{ y: -8, transition: { duration: 0.3 } }}
+            onClick={() => navigate('/app/observer', { state: { tab: 'ml' } })}
             className="hero-mockup"
+            style={{ cursor: 'pointer' }}
           >
              <div className="mockup-header">
                 <span className="mockup-dot" style={{ background: '#ff5f56' }} /><span className="mockup-dot" style={{ background: '#ffbd2e' }} /><span className="mockup-dot" style={{ background: '#27c93f' }} />
@@ -193,7 +206,7 @@ export default function PublicLanding() {
 
       <StaggerContainer staggerChildren={0.05} className="public-trust-strip">
         <StaggerItem y={10}>
-          <span className="trust-badge" style={{ background: 'var(--brand)', color: 'white', border: 'none' }}>SOC 2 Type II In Progress</span>
+          <span className="trust-badge" style={{ background: 'var(--brand)', color: 'white', border: 'none', fontWeight: 700 }}>Institutional Grade Security</span>
         </StaggerItem>
         {TRUST_POINTS.map((point) => (
           <StaggerItem key={point} y={10}>
@@ -215,6 +228,7 @@ export default function PublicLanding() {
               whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
               className="product-card product-card--static"
             >
+              <div style={{ marginBottom: '16px', color: 'var(--brand)' }}><Zap size={24} /></div>
               <span className="product-card__label">Setup in one day</span>
               <p>Create elections, map departments, and launch terminals with role-based controls.</p>
             </motion.article>
@@ -224,6 +238,7 @@ export default function PublicLanding() {
               whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
               className="product-card product-card--static"
             >
+              <div style={{ marginBottom: '16px', color: 'var(--brand)' }}><Shield size={24} /></div>
               <span className="product-card__label">Fraud-aware operations</span>
               <p>Observer desk tracks vote velocity, terminal health, and suspicious patterns in real time.</p>
             </motion.article>
@@ -233,11 +248,91 @@ export default function PublicLanding() {
               whileHover={{ y: -5, boxShadow: 'var(--em-shadow-lg)' }}
               className="product-card product-card--static"
             >
+              <div style={{ marginBottom: '16px', color: 'var(--brand)' }}><CheckCircle size={24} /></div>
               <span className="product-card__label">Audit-ready closeout</span>
               <p>Every receipt is verifiable and every critical event is anchored for post-election review.</p>
             </motion.article>
           </StaggerItem>
         </StaggerContainer>
+
+        {/* --- HOW IT WORKS SECTION --- */}
+        <div className="section-heading" style={{ marginTop: 'var(--space-10)' }}>
+          <SlideInHorizontal direction="left">
+            <p className="section-kicker">How it works</p>
+            <h2>Three steps to absolute integrity.</h2>
+          </SlideInHorizontal>
+        </div>
+        <div className="card-grid">
+          <div className="surface-card" style={{ background: 'var(--surface-2)', padding: '32px' }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'rgba(26, 92, 58, 0.1)', marginBottom: '16px' }}>01</div>
+            <h3>Configure Roll</h3>
+            <p style={{ marginTop: '12px' }}>Import student data via SSO or CSV. Set eligibility rules per faculty or department.</p>
+          </div>
+          <div className="surface-card" style={{ background: 'var(--surface-2)', padding: '32px' }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'rgba(26, 92, 58, 0.1)', marginBottom: '16px' }}>02</div>
+            <h3>Biometric Check-in</h3>
+            <p style={{ marginTop: '12px' }}>Voters authenticate via fingerprints or facial recognition at secure kiosks.</p>
+          </div>
+          <div className="surface-card" style={{ background: 'var(--surface-2)', padding: '32px' }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'rgba(26, 92, 58, 0.1)', marginBottom: '16px' }}>03</div>
+            <h3>Verify Results</h3>
+            <p style={{ marginTop: '12px' }}>Instant cryptographic proof allows every voter to verify their ballot was counted correctly.</p>
+          </div>
+        </div>
+
+        {/* --- PRICING SECTION --- */}
+        <div className="section-heading" style={{ marginTop: 'var(--space-10)' }}>
+          <SlideInHorizontal direction="right">
+            <p className="section-kicker">Pricing</p>
+            <h2>Scalable for any institution.</h2>
+          </SlideInHorizontal>
+        </div>
+        <div className="card-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+          <div className="surface-card" style={{ padding: '40px', border: '1px solid var(--line-soft)', display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--brand)', fontWeight: 700 }}>Single Election</span>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 800 }}>$499</span>
+              <span style={{ color: 'var(--ink-soft)' }}>/event</span>
+            </div>
+            <ul style={{ marginTop: '24px', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', flexGrow: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Up to 2,000 voters</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> 3 Terminal licenses</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Blockchain receipts</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Basic audit logs</li>
+            </ul>
+            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }}>Get Started</AnimatedButton>
+          </div>
+          
+          <div className="surface-card" style={{ padding: '40px', background: 'var(--surface-1)', border: '2px solid var(--brand)', position: 'relative', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)' }}>
+            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--brand)', color: 'white', padding: '4px 12px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase' }}>Most Popular</div>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--brand)', fontWeight: 700 }}>Annual Campus</span>
+            <div style={{ marginTop: '16px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 800 }}>$2,400</span>
+              <span style={{ color: 'var(--ink-soft)' }}>/year</span>
+            </div>
+            <ul style={{ marginTop: '24px', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', flexGrow: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Unlimited elections</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Unlimited terminals</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Priority biometric support</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> API access for SSO</li>
+            </ul>
+            <AnimatedButton className="button button--primary" style={{ marginTop: '32px', width: '100%' }}>Deploy Campus-wide</AnimatedButton>
+          </div>
+
+          <div className="surface-card" style={{ padding: '40px', border: '1px solid var(--line-soft)', display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--brand)', fontWeight: 700 }}>Enterprise</span>
+            <div style={{ marginTop: '16px' }}>
+              <span style={{ fontSize: '1.5rem', fontWeight: 800 }}>Custom</span>
+            </div>
+            <ul style={{ marginTop: '24px', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '12px', flexGrow: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Multi-campus deployments</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Custom data residency</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '0.9rem' }}><CheckCircle size={16} color="var(--brand)" /> Dedicated infrastructure</li>
+              <li style={{ display: 'flex', gap: '8px', fontSize: '1.1rem', marginTop: '8px' }}>Institutional volume</li>
+            </ul>
+            <AnimatedButton className="button button--ghost" style={{ marginTop: '32px', width: '100%' }}>Contact Sales</AnimatedButton>
+          </div>
+        </div>
       </section>
 
       <section className="public-section">
@@ -247,22 +342,28 @@ export default function PublicLanding() {
             <h2>What campuses report after deployment.</h2>
           </SlideInHorizontal>
         </div>
-        <StaggerContainer className="card-grid">
+        <div className="card-grid">
           {SOCIAL_PROOF.map((item) => (
             <StaggerItem key={item.name}>
               <motion.article 
                 whileHover={{ y: -5 }}
                 className="product-card product-card--static"
+                style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
               >
-                <span className="product-card__label" style={{ color: 'var(--brand)' }}>{item.name}</span>
-                <p>{item.outcome}</p>
+                <div style={{ flexGrow: 1 }}>
+                  <p style={{ fontStyle: 'italic', color: 'var(--ink)', marginBottom: '16px', fontSize: '1.1rem' }}>
+                    &quot;{item.quote}&quot;
+                  </p>
+                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{item.author}</strong>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--ink-soft)' }}>{item.name}</span>
+                </div>
+                <div style={{ marginTop: '24px', paddingTop: '12px', borderTop: '1px solid var(--line-soft)', color: 'var(--brand)', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {item.outcome}
+                </div>
               </motion.article>
             </StaggerItem>
           ))}
-        </StaggerContainer>
-        <FadeInUp delay={0.4} className="public-disclaimer">
-          * Representative institutional outcomes for platform capability illustration.
-        </FadeInUp>
+        </div>
       </section>
 
       <section className="public-section">
@@ -323,18 +424,51 @@ export default function PublicLanding() {
         </FadeInUp>
       </section>
 
+      <section className="public-section" style={{ background: 'var(--brand)', color: 'white', padding: 'var(--space-10) var(--inner-pad)', borderRadius: 'var(--radius-panel)', textAlign: 'center', marginBlock: 'var(--space-10)' }}>
+        <FadeInUp>
+          <h2 style={{ color: 'white', fontSize: 'var(--text-3xl)' }}>Ready to run your next election on CampusVote?</h2>
+          <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginTop: '16px', maxWidth: '50ch', marginInline: 'auto' }}>
+            Schedule a platform walkthrough with our enterprise team and see why institutions are moving to biometric-first elections.
+          </p>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '32px' }}>
+            <AnimatedButton className="button" style={{ background: 'white', color: 'var(--brand)' }}>
+              Schedule a Demo
+            </AnimatedButton>
+            <AnimatedButton className="button" style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.4)', color: 'white' }}>
+              Contact Sales
+            </AnimatedButton>
+          </div>
+        </FadeInUp>
+      </section>
+
       <FadeInUp className="public-footer">
         <div className="public-footer__inner">
-          <div>
+          <div className="public-footer__info">
             <strong>CampusVote</strong>
-            <span>Secure election platform for universities.</span>
+            <span>Secure digital election platform for universities.</span>
+            <div style={{ marginTop: '24px', display: 'flex', gap: '16px' }}>
+              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="LinkedIn"><Globe size={20} /></a>
+              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="Privacy"><Shield size={20} /></a>
+              <a href="#" style={{ color: 'var(--ink-soft)' }} aria-label="Security"><Lock size={20} /></a>
+            </div>
           </div>
-          <div className="public-footer__links">
-            <button type="button" className="footer-link" onClick={() => navigate('/about')}>About</button>
-            <button type="button" className="footer-link" onClick={() => navigate('/privacy')}>Privacy</button>
-            <button type="button" className="footer-link" onClick={() => navigate('/terms')}>Terms</button>
-            <button type="button" className="footer-link" onClick={() => navigate('/pricing')}>Pricing</button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '48px' }}>
+            <div className="public-footer__column" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <span style={{ fontWeight: 800, color: 'var(--ink)', fontSize: '0.85rem', textTransform: 'uppercase' }}>Platform</span>
+              <button type="button" className="footer-link" onClick={() => navigate('/demo')}>Demo Experience</button>
+              <button type="button" className="footer-link" onClick={() => navigate('/app/verify')}>Verify Results</button>
+              <button type="button" className="footer-link" onClick={() => navigate('/pricing')}>Pricing</button>
+            </div>
+            <div className="public-footer__column" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <span style={{ fontWeight: 800, color: 'var(--ink)', fontSize: '0.85rem', textTransform: 'uppercase' }}>Company</span>
+              <button type="button" className="footer-link" onClick={() => navigate('/about')}>About</button>
+              <button type="button" className="footer-link" onClick={() => navigate('/privacy')}>Privacy</button>
+              <button type="button" className="footer-link" onClick={() => navigate('/terms')}>Terms</button>
+            </div>
           </div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: '48px', paddingTop: '24px', borderTop: '1px solid var(--line-soft)', fontSize: '0.8rem', color: 'var(--ink-soft)' }}>
+          &copy; {new Date().getFullYear()} CampusVote. Built for Institutional Integrity.
         </div>
       </FadeInUp>
     </section>

@@ -134,9 +134,9 @@ export const RevealText = ({ text, delay = 0, className = '' }) => {
             visible: { opacity: 1, y: 0 }
           }}
           transition={{ duration: 0.6, ease: [0.215, 0.61, 0.355, 1] }}
-          style={{ display: 'inline-block', marginRight: '0.25em' }}
+          style={{ display: 'inline' }}
         >
-          {word}
+          {word}{' '}
         </motion.span>
       ))}
     </motion.h1>

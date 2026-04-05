@@ -1,12 +1,13 @@
-const { Kafka } = require('kafkajs');
+const { Kafka, logLevel } = require('kafkajs');
 const logger = require('../utils/logger.js');
 
 const kafka = new Kafka({
     clientId: 'election-backend',
     brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+    logLevel: logLevel.ERROR,
     retry: {
-        initialRetryTime: process.env.NODE_ENV === 'development' ? 50 : 100,
-        retries: process.env.NODE_ENV === 'development' ? 2 : 8
+        initialRetryTime: 100,
+        retries: 5
     }
 });
 
@@ -16,34 +17,53 @@ let isMockMode = false;
 
 const initKafkaProducer = async () => {
     try {
-        // Fast fail for local dev if Kafka isn't explicitly required
         await producer.connect();
         isConnected = true;
         isMockMode = false;
-        logger.info('Kafka producer connected successfully');
+        logger.info('✅ Kafka Producer connected successfully');
     } catch (error) {
         isConnected = false;
         isMockMode = true;
-        logger.warn('⚠️  Kafka connection failed. Falling back to MOCK MODE for telemetry.');
-        logger.warn('ECONNREFUSED for Kafka is expected in a local environment without a running broker.');
+        logger.warn('⚠️  Kafka Connection Failed: Falling back to MOCK MODE for telemetry.');
+        logger.debug(`Kafka Connection Error: ${error.message}`);
     }
 };
 
+/**
+ * Publish vote telemetry to Kafka for real-time ML analysis
+ * @param {string} topic - Kafka topic (e.g., 'election-telemetry')
+ * @param {string} messageType - Event type (e.g., 'VOTE_CAST')
+ * @param {Object} data - Payload containing voterId, terminalId, etc.
+ */
 const publishTelemetry = async (topic, messageType, data) => {
     const payload = {
-        type: messageType,
-        timestamp: new Date().toISOString(),
-        data
+        type:      messageType,
+        timestamp: data.timestamp || new Date().toISOString(),
+        metadata: {
+            source: 'backend-api',
+            version: '1.0.0'
+        },
+        data: {
+            voteId:     data.voteId,
+            voterId:    data.voterId,
+            electionId: data.electionId,
+            candidateId: data.candidateId,
+            terminalId: data.terminalId,
+            districtId: data.districtId || data.district,
+            timestamp:  data.timestamp || new Date().toISOString()
+        }
     };
 
     if (isMockMode) {
-        // Log to application log instead of dropping if in mock mode
-        logger.info(`[MOCK_KAFKA] Topic: ${topic}`, payload);
+        logger.info(`[MOCK_KAFKA] Topic: ${topic} | Type: ${messageType}`, { 
+            voterId: data.voterId, 
+            terminalId: data.terminalId 
+        });
         return true; 
     }
 
     if (!isConnected) {
-        logger.warn('Kafka producer not connected. Dropping message.', { topic, messageType });
+        logger.error('CRITICAL: Kafka infrastructure requested but producer not connected.');
         return false;
     }
     
@@ -52,14 +72,14 @@ const publishTelemetry = async (topic, messageType, data) => {
             topic,
             messages: [
                 {
-                    key: data.voterId || data.terminalId || 'system',
+                    key:   String(data.voterId || 'system'),
                     value: JSON.stringify(payload)
                 }
             ]
         });
         return true;
     } catch (error) {
-        logger.error('Error publishing to Kafka', { topic, error: error.message });
+        logger.error('Error publishing to Kafka broker:', { topic, error: error.message });
         return false;
     }
 };
@@ -68,12 +88,14 @@ const disconnectKafkaProducer = async () => {
     if (isConnected) {
         await producer.disconnect();
         isConnected = false;
-        logger.info('Kafka producer disconnected');
+        logger.info('Kafka Producer disconnected');
     }
 };
 
 module.exports = {
     initKafkaProducer,
     publishTelemetry,
-    disconnectKafkaProducer
+    disconnectKafkaProducer,
+    getKafkaStatus: () => ({ isConnected, isMockMode })
 };
+

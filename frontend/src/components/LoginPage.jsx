@@ -101,7 +101,15 @@ export default function LoginPage() {
       navigate('/app/voter')
     } catch (err) {
       console.error(err)
-      setStatus({ error: err.error || err.message || 'Passkey authentication failed' })
+      if (err.code === 'BIOMETRIC_NOT_REGISTERED') {
+        setStatus({ 
+          info: 'Biometric registration not found.',
+          message: 'Please log in with your institutional email and password to register your biometric identity.',
+          action: () => setVoterMethod('email')
+        })
+      } else {
+        setStatus({ error: err.error || err.message || 'Passkey authentication failed' })
+      }
     }
   }
 

@@ -37,7 +37,7 @@ export default function SignupPage() {
         ...prev,
         rollNumber: s.rollNumber || '',
         email: s.email || '',
-        fullName: s.name || ''
+        fullName: s.fullName || ''
       }))
     }
   }, [location.state])

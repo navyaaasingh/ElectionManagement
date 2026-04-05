@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { getMlHealth } from '../api/ml.js'
 import { getAuditLogs } from '../api/admin.js'
 import { loadElectionSnapshot } from '../lib/electionSnapshot.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
+import MLMonitor from './MLMonitor.jsx'
+import socket from '../lib/socket.js'
+import { Activity } from 'lucide-react'
 
 export default function ObserverDashBoard() {
-  const [tab, setTab] = useState('overview')
+  const location = useLocation()
+  const [tab, setTab] = useState(location.state?.tab || 'overview')
   const [snapshot, setSnapshot] = useState(null)
   const [mlHealth, setMlHealth] = useState(null)
   const [auditLogs, setAuditLogs] = useState([])
@@ -51,6 +56,12 @@ export default function ObserverDashBoard() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    if (location.state?.tab) {
+      setTab(location.state.tab)
+    }
+  }, [location.state])
+
   const summary = useMemo(() => {
     return {
       activeCount: snapshot?.activeCount ?? 0,
@@ -78,6 +89,7 @@ export default function ObserverDashBoard() {
             ['overview', 'Overview'],
             ['feed', 'Live feed'],
             ['alerts', 'Alerts'],
+            ['ml', 'ML Monitor'],
             ['terminals', 'Terminals'],
           ].map(([id, label]) => (
             <button
@@ -92,11 +104,18 @@ export default function ObserverDashBoard() {
         </div>
 
         <div className="workspace-sidebar__footer">
-          <div className="status-label">
+          <div className="status-label" onClick={() => setTab('ml')} style={{ cursor: 'pointer' }}>
              <span>ML engine</span>
-             <strong className={mlHealth?.status === 'healthy' ? 'status--online' : 'status--offline'}>
-               {mlHealth?.status === 'healthy' ? 'Online' : 'Monitoring Active'}
-             </strong>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <motion.div 
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  style={{ width: '8px', height: '8px', borderRadius: '50%', background: mlHealth?.status === 'healthy' ? 'var(--success)' : 'var(--warning)' }} 
+                />
+                <strong className={mlHealth?.status === 'healthy' ? 'status--online' : 'status--offline'}>
+                  {mlHealth?.status === 'healthy' ? 'Online' : 'Monitoring Active'}
+                </strong>
+             </div>
           </div>
         </div>
       </aside>
@@ -320,6 +339,17 @@ export default function ObserverDashBoard() {
                 ))}
               </tbody>
             </table>
+          </motion.div>
+        ) : null}
+
+        {tab === 'ml' ? (
+          <motion.div 
+            key="ml"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+          >
+            <MLMonitor />
           </motion.div>
         ) : null}
         </AnimatePresence>

@@ -113,11 +113,14 @@ const initializeDatabases = async () => {
     console.log('🔌 Initializing database connections...');
 
     // Postgres is usually required for core functionality
+    console.log('⏳ Checking PostgreSQL/SQLite connection...');
     await testPostgresConnection();
+    console.log('✅ PostgreSQL/SQLite authenticated');
     
     if (process.env.NODE_ENV === 'development') {
         const models = require('../models/index.js');
         // Synchronize all defined models with database
+        console.log('⏳ Syncing models (this can take a moment)...');
         await sequelize.sync();
         console.log('✅ SQLite database models synced');
         
