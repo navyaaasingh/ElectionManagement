@@ -8,6 +8,7 @@ const logger = require('../utils/logger.js');
 const { publishTelemetry } = require('../services/kafkaProducer.js');
 const { broadcastMessage } = require('../services/websocket.service.js');
 const { redisClient } = require('../db/index.js');
+const AuditLog = require('../models/auditLog.model.js');
 
 const router = express.Router();
 
@@ -44,6 +45,19 @@ router.post('/sos', authenticate, async (req, res) => {
         }
 
         logger.warn('SOS_ALERT_RAISED', payload);
+        try {
+            await AuditLog.create({
+                event_type: 'SOS_ALERT',
+                action: 'SOS_TRIGGERED',
+                user_id: String(payload.raisedBy),
+                terminal_id: String(payload.terminalId),
+                election_id: payload.electionId ? String(payload.electionId) : undefined,
+                details: payload,
+                status: 'pending',
+            });
+        } catch (error) {
+            logger.warn('Failed to persist SOS alert audit record', { error: error.message });
+        }
         return res.status(201).json({ success: true, message: 'SOS alert sent', alert: payload });
     } catch (error) {
         return res.status(500).json({ success: false, error: 'Failed to send SOS alert', message: error.message });

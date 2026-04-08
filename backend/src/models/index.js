@@ -11,6 +11,7 @@ const VoteNonce = require('./voteNonce.model.js');
 const PollApproval = require('./pollApproval.model.js');
 const OutboxEvent = require('./outboxEvent.model.js');
 const DeadLetterEvent = require('./deadLetterEvent.model.js');
+const VoteSagaStatus = require('./voteSagaStatus.model.js');
 
 // Define relationships
 Voter.hasMany(VoterPasskey, {
@@ -135,6 +136,19 @@ OutboxEvent.belongsTo(VotingRecord, {
     constraints: false,
 });
 
+VotingRecord.hasOne(VoteSagaStatus, {
+    foreignKey: 'vote_id',
+    sourceKey: 'record_id',
+    as: 'saga_status',
+    constraints: false,
+});
+VoteSagaStatus.belongsTo(VotingRecord, {
+    foreignKey: 'vote_id',
+    targetKey: 'record_id',
+    as: 'voting_record',
+    constraints: false,
+});
+
 module.exports = {
     Voter,
     VoterPasskey,
@@ -149,4 +163,5 @@ module.exports = {
     PollApproval,
     OutboxEvent,
     DeadLetterEvent,
+    VoteSagaStatus,
 };

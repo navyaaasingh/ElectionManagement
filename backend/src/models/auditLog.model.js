@@ -11,18 +11,6 @@ const auditLogSchema = new mongoose.Schema({
     event_type: {
         type: String,
         required: true,
-        enum: [
-            'voter_registered',
-            'vote_cast',
-            'candidate_added',
-            'election_created',
-            'admin_login',
-            'terminal_registered',
-            'fraud_alert',
-            'system_config_changed',
-            'blockchain_sync',
-            'data_export',
-        ],
     },
     user_id: {
         type: String,

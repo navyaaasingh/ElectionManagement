@@ -3,7 +3,7 @@
  * Handles vote submission, blockchain integration, and offline reconciliation
  */
 
-const { Voter, Election, Candidate, VotingRecord, VoteNonce } = require('../models/index.js');
+const { Voter, Election, Candidate, VotingRecord, VoteNonce, VoteSagaStatus } = require('../models/index.js');
 const fabricService = require('./fabricService.js');
 const zkpService = require('./zkpService.js');
 const logger = require('../utils/logger.js');
@@ -109,6 +109,7 @@ class VoteService {
             let blockchainTxId = null;
             let saltedBiometricHash = null;
             let blockchainDeferred = false;
+            let sagaStatus = null;
 
             // 4. Transactional section to avoid check-insert race windows.
             await sequelize.transaction(async (tx) => {
@@ -179,6 +180,14 @@ class VoteService {
                 }
 
                 voteId = crypto.randomUUID();
+                sagaStatus = await VoteSagaStatus.create({
+                    vote_id: voteId,
+                    voter_id: voterId,
+                    election_id: electionId,
+                    current_state: 'PENDING',
+                    state_updated_at: new Date(),
+                }, { transaction: tx });
+
                 const biometricInput = String(biometricHash || '');
                 saltedBiometricHash = crypto
                     .createHash('sha256')
@@ -202,14 +211,25 @@ class VoteService {
                         timestamp: requestTs
                     });
                     blockchainTxId = blockchainTx?.txId || blockchainTx || verificationHash;
+                    await sagaStatus.update({
+                        current_state: 'BLOCKCHAIN_OK',
+                        last_error: null,
+                        state_updated_at: new Date(),
+                    }, { transaction: tx });
                 } catch (fabricErr) {
                     logger.warn('Blockchain unavailable, falling back to DB-only vote:', { error: fabricErr.message });
                     blockchainTxId = verificationHash;
                     blockchainDeferred = true;
                     fabricFallbackTotal.inc();
+                    await sagaStatus.update({
+                        current_state: 'PENDING',
+                        last_error: `BLOCKCHAIN_DEFERRED:${fabricErr.message}`,
+                        state_updated_at: new Date(),
+                    }, { transaction: tx });
                 }
 
                 const votingRecord = await VotingRecord.create({
+                    record_id: voteId,
                     voter_id: voterId,
                     election_id: electionId,
                     terminal_id: terminalId,
@@ -221,9 +241,16 @@ class VoteService {
                 }, { transaction: tx });
 
                 await voter.update({ has_voted: true }, { transaction: tx });
+                if (!blockchainDeferred) {
+                    await sagaStatus.update({
+                        current_state: 'SQL_OK',
+                        last_error: null,
+                        state_updated_at: new Date(),
+                    }, { transaction: tx });
+                }
 
                 if (blockchainDeferred) {
-                    await reconciliationSaga.enqueueVoteSync({
+                    const outbox = await reconciliationSaga.enqueueVoteSync({
                         voteId,
                         recordId: votingRecord.record_id,
                         voterId,
@@ -235,6 +262,10 @@ class VoteService {
                         zkpCommitment,
                         timestamp: requestTs,
                     }, tx);
+                    await sagaStatus.update({
+                        outbox_event_id: outbox.event_id,
+                        state_updated_at: new Date(),
+                    }, { transaction: tx });
                 }
             });
 
@@ -317,6 +348,16 @@ class VoteService {
                     }
                 });
             } catch { /* audit non-fatal */ }
+            try {
+                if (!blockchainDeferred) {
+                    await VoteSagaStatus.update(
+                        { current_state: 'NOTIFIED', last_error: null, state_updated_at: new Date() },
+                        { where: { vote_id: voteId } }
+                    );
+                }
+            } catch (sagaErr) {
+                logger.warn('Failed to mark vote saga as NOTIFIED', { voteId, error: sagaErr.message });
+            }
 
             voteCastLatencyMs.observe(Date.now() - startedAt);
 
@@ -361,6 +402,20 @@ class VoteService {
                     },
                     errorMessage: error.message,
                 });
+            }
+            try {
+                if (voteId && voterId && electionId) {
+                    await VoteSagaStatus.upsert({
+                        vote_id: voteId,
+                        voter_id: voterId,
+                        election_id: electionId,
+                        current_state: 'FAILED',
+                        last_error: error.message,
+                        state_updated_at: new Date(),
+                    });
+                }
+            } catch (sagaErr) {
+                logger.warn('Failed to mark vote saga as FAILED', { voteId, error: sagaErr.message });
             }
 
             throw error;
@@ -441,11 +496,33 @@ class VoteService {
             let blockchainVote = null;
             let integrityVerified = false;
             let merkleProof = null;
+            let proofVerified = false;
+            let chainHashMatches = false;
+            const enforceReceiptProof = isTruthy(process.env.ENFORCE_RECEIPT_CHAIN_PROOF, process.env.NODE_ENV === 'production');
             try {
                 blockchainVote = await fabricService.getVoteById(record.blockchain_tx_id);
                 integrityVerified = !!blockchainVote;
                 merkleProof = await fabricService.getMerkleProof(record.blockchain_tx_id);
-            } catch { /* blockchain optional */ }
+                proofVerified = fabricService.verifyMerkleProof(merkleProof, record.blockchain_tx_id);
+                const chainHash = String(
+                    blockchainVote?.verificationHash ||
+                    blockchainVote?.verification_hash ||
+                    blockchainVote?.receiptHash ||
+                    ''
+                ).toLowerCase();
+                chainHashMatches = !!chainHash && chainHash === normalized;
+            } catch (error) {
+                logger.warn('Receipt blockchain verification unavailable', { receiptId: normalized, error: error.message });
+            }
+
+            if (enforceReceiptProof && (!proofVerified || !chainHashMatches)) {
+                return {
+                    verified: false,
+                    error: !proofVerified
+                        ? 'Merkle proof validation failed'
+                        : 'Blockchain hash does not match receipt hash',
+                };
+            }
 
             return {
                 verified: true,
@@ -456,6 +533,8 @@ class VoteService {
                     blockchainTxId: record.blockchain_tx_id,
                     terminalId: record.terminal_id,
                     integrityVerified,
+                    chainHashMatches,
+                    merkleProofVerified: proofVerified,
                     blockNumber: blockchainVote?.blockNumber || null,
                     merkleProof: merkleProof || null,
                 }

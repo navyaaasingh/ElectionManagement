@@ -14,6 +14,7 @@ const TABLE_CONTEXT_MAP = {
     vote_nonces: 'vote',
     outbox_events: 'vote',
     dead_letter_events: 'vote',
+    vote_saga_status: 'vote',
 };
 
 const getContextSchema = (context) => CONTEXT_SCHEMAS[context] || null;

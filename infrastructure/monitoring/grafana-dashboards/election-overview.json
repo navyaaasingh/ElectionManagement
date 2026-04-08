@@ -99,6 +99,30 @@
         }
       ],
       "gridPos": { "h": 6, "w": 6, "x": 18, "y": 16 }
+    },
+    {
+      "type": "stat",
+      "title": "ML Service Healthy",
+      "targets": [
+        {
+          "expr": "ml_service_healthy",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 22 }
+    },
+    {
+      "type": "graph",
+      "title": "Saga State Counts",
+      "targets": [
+        {
+          "expr": "sum by (state) (vote_saga_state_count)",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 22 },
+      "xaxis": { "mode": "time" },
+      "yaxes": [{ "format": "short" }, { "format": "short" }]
     }
   ]
 }

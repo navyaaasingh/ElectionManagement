@@ -71,3 +71,21 @@ groups:
         annotations:
           summary: "Fabric p95 latency breached rollback criteria"
           description: "Fabric call p95 latency is above 2 seconds"
+
+      - alert: FabricCircuitOpenTooLong
+        expr: fabric_circuit_open == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Fabric circuit breaker open for more than 5 minutes"
+          description: "Fallback path is active continuously; reconciliation risk increasing"
+
+      - alert: MlServiceUnhealthy
+        expr: ml_service_healthy == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ML service health check failing"
+          description: "ML fraud/anomaly pipeline health endpoint is unhealthy"

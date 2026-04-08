@@ -10,6 +10,11 @@ const { initializeDatabases, closeDatabases } = require('./db/index.js');
 const { initWebSocketServer } = require('./services/websocket.service.js');
 const { initKafkaProducer, disconnectKafkaProducer } = require('./services/kafkaProducer.js');
 const reconciliationSaga = require('./services/reconciliationSaga.service.js');
+const mlHealthService = require('./services/mlHealth.service.js');
+const { sagaStateGauge } = require('./services/observability.service.js');
+const { VoteSagaStatus } = require('./models/index.js');
+const { authenticate, authorize } = require('./middleware/auth.middleware.js');
+const { fn, col } = require('sequelize');
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +42,7 @@ const voterRoutes = require('./routes/voter.routes.js');
 const studentRoutes = require('./routes/student.routes.js');
 const operationsRoutes = require('./routes/operations.routes.js');
 const contextRoutes = require('./routes/context.routes.js');
+const terminalRoutes = require('./routes/terminal.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -110,6 +116,24 @@ app.get('/metrics', async (req, res) => {
     res.send(await promClient.register.metrics());
 });
 
+app.get('/api/v1/saga/metrics', authenticate, authorize('admin', 'observer'), async (req, res) => {
+    try {
+        const rows = await VoteSagaStatus.findAll({
+            attributes: ['current_state', [fn('COUNT', col('current_state')), 'count']],
+            group: ['current_state'],
+            raw: true,
+        });
+        const states = ['PENDING', 'BLOCKCHAIN_OK', 'SQL_OK', 'NOTIFIED', 'FAILED'];
+        const saga = {};
+        for (const state of states) saga[state] = 0;
+        for (const row of rows) saga[row.current_state] = Number(row.count || 0);
+        for (const state of states) sagaStateGauge.labels(state).set(saga[state]);
+        res.json({ success: true, saga, timestamp: new Date().toISOString() });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to load saga metrics', message: error.message });
+    }
+});
+
 // Mount API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/votes', voteRoutes);
@@ -121,6 +145,8 @@ app.use('/api/v1/voters', voterRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/operations', operationsRoutes);
 app.use('/api/v1/contexts', contextRoutes);
+app.use('/api/v1/terminal', terminalRoutes);
+app.use('/api/terminal', terminalRoutes);
 
 // Mock blockchain route for Verification Portal demo
 const blockchainMockRoutes = require('./routes/blockchain.mock.routes.js');
@@ -200,6 +226,7 @@ const startServer = async () => {
             console.warn('⚠️  Kafka Producer initialization failed. Event streaming disabled.');
         }
         reconciliationSaga.start();
+        mlHealthService.start();
 
         // Start HTTP server
         const server = app.listen(PORT, '0.0.0.0', () => {
@@ -225,6 +252,7 @@ const startServer = async () => {
 process.on('SIGTERM', async () => {
     console.log('\n🛑 SIGTERM received, shutting down gracefully...');
     reconciliationSaga.stop();
+    mlHealthService.stop();
     await disconnectKafkaProducer();
     await closeDatabases();
     process.exit(0);
@@ -233,6 +261,7 @@ process.on('SIGTERM', async () => {
 process.on('SIGINT', async () => {
     console.log('\n🛑 SIGINT received, shutting down gracefully...');
     reconciliationSaga.stop();
+    mlHealthService.stop();
     await disconnectKafkaProducer();
     await closeDatabases();
     process.exit(0);

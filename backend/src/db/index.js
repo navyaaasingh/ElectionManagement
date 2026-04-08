@@ -428,18 +428,76 @@ const ensureSchemaCompatibility = async () => {
         console.log('✅ Created missing table dead_letter_events');
     }
 
+    try {
+        await qi.describeTable('vote_saga_status');
+    } catch {
+        await qi.createTable('vote_saga_status', {
+            saga_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            vote_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+                unique: true,
+            },
+            voter_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            election_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            outbox_event_id: {
+                type: Sequelize.UUID,
+                allowNull: true,
+            },
+            current_state: {
+                type: Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'PENDING',
+            },
+            last_error: {
+                type: Sequelize.TEXT,
+                allowNull: true,
+            },
+            state_updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table vote_saga_status');
+    }
+
     await addIndexIfMissing('outbox_events', ['status', 'next_attempt_at'], {
         name: 'outbox_events_status_next_attempt_idx',
     });
     await addIndexIfMissing('dead_letter_events', ['resolved', 'created_at'], {
         name: 'dead_letter_events_resolved_created_idx',
     });
+    await addIndexIfMissing('vote_saga_status', ['current_state', 'state_updated_at'], {
+        name: 'vote_saga_status_state_time_idx',
+    });
 
     if (dialect === 'postgres') {
         const schemaToTables = {
             [CONTEXT_SCHEMAS.voter]: ['voters', 'students'],
             [CONTEXT_SCHEMAS.election]: ['elections', 'candidates', 'poll_approvals'],
-            [CONTEXT_SCHEMAS.vote]: ['voting_records', 'vote_nonces', 'outbox_events', 'dead_letter_events'],
+            [CONTEXT_SCHEMAS.vote]: ['voting_records', 'vote_nonces', 'outbox_events', 'dead_letter_events', 'vote_saga_status'],
         };
 
         for (const [schemaName, tables] of Object.entries(schemaToTables)) {

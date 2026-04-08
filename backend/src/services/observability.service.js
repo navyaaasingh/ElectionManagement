@@ -56,6 +56,23 @@ const terminalOfflineCount = getOrCreateMetric('terminal_offline_count', () => n
     help: 'Number of offline terminals',
 }));
 
+const mlServiceHealthy = getOrCreateMetric('ml_service_healthy', () => new promClient.Gauge({
+    name: 'ml_service_healthy',
+    help: 'ML service health state: 1=healthy, 0=unhealthy',
+}));
+
+const mlHealthLatencyMs = getOrCreateMetric('ml_health_latency_ms', () => new promClient.Histogram({
+    name: 'ml_health_latency_ms',
+    help: 'ML health endpoint latency in milliseconds',
+    buckets: [10, 25, 50, 100, 250, 500, 1000, 2000],
+}));
+
+const sagaStateGauge = getOrCreateMetric('vote_saga_state_count', () => new promClient.Gauge({
+    name: 'vote_saga_state_count',
+    help: 'Current count of vote saga records by state',
+    labelNames: ['state'],
+}));
+
 module.exports = {
     voteCastLatencyMs,
     fabricCallLatencyMs,
@@ -66,4 +83,7 @@ module.exports = {
     deadLetterPendingGauge,
     voteVelocityPerDistrict,
     terminalOfflineCount,
+    mlServiceHealthy,
+    mlHealthLatencyMs,
+    sagaStateGauge,
 };

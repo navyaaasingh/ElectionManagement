@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { OutboxEvent, DeadLetterEvent } = require('../models/index.js');
+const { OutboxEvent, DeadLetterEvent, VoteSagaStatus } = require('../models/index.js');
 const { sequelize } = require('../db/index.js');
 const fabricService = require('./fabricService.js');
 const logger = require('../utils/logger.js');
@@ -68,6 +68,20 @@ class ReconciliationSagaService {
                     const payload = event.payload || {};
                     if (event.event_type === 'VOTE_SYNC_TO_BLOCKCHAIN') {
                         await fabricService.submitVote(payload);
+                        if (payload.voteId) {
+                            await VoteSagaStatus.update(
+                                { current_state: 'BLOCKCHAIN_OK', last_error: null, state_updated_at: new Date() },
+                                { where: { vote_id: payload.voteId }, transaction: tx }
+                            );
+                            await VoteSagaStatus.update(
+                                { current_state: 'SQL_OK', last_error: null, state_updated_at: new Date() },
+                                { where: { vote_id: payload.voteId }, transaction: tx }
+                            );
+                            await VoteSagaStatus.update(
+                                { current_state: 'NOTIFIED', last_error: null, state_updated_at: new Date() },
+                                { where: { vote_id: payload.voteId }, transaction: tx }
+                            );
+                        }
                     } else {
                         throw new Error(`Unsupported outbox event type: ${event.event_type}`);
                     }
@@ -88,6 +102,12 @@ class ReconciliationSagaService {
                     if (nextRetry >= maxRetries) {
                         event.status = 'FAILED';
                         await event.save({ transaction: tx });
+                        if (event.payload?.voteId) {
+                            await VoteSagaStatus.update(
+                                { current_state: 'FAILED', last_error: error.message, state_updated_at: new Date() },
+                                { where: { vote_id: event.payload.voteId }, transaction: tx }
+                            );
+                        }
                         await this.enqueueDeadLetter({
                             sourceEventId: event.event_id,
                             eventType: event.event_type,

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reconciliation-saga
+  namespace: production
+  labels:
+    app: reconciliation-saga
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reconciliation-saga
+  template:
+    metadata:
+      labels:
+        app: reconciliation-saga
+    spec:
+      containers:
+      - name: reconciliation-saga
+        image: yourdockerhub/election-backend:latest
+        command: ["node", "src/workers/reconciliationSagaWorker.js"]
+        env:
+        - name: NODE_ENV
+          value: "production"
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: reconciliation-saga-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: reconciliation-saga
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

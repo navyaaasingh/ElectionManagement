@@ -4,6 +4,7 @@ const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const iotService = require('../services/iotService.js');
 const AuditLog = require('../models/auditLog.model.js');
 const { OutboxEvent, DeadLetterEvent } = require('../models/index.js');
+const mlHealthService = require('../services/mlHealth.service.js');
 const {
     voteVelocityPerDistrict,
     terminalOfflineCount,
@@ -134,10 +135,20 @@ router.get('/dashboard', authenticate, authorize('admin', 'observer'), async (re
                 outboxPending,
                 deadLetterPending,
             },
+            mlHealth: mlHealthService.getStatus(),
             criticalAlerts,
         });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Failed to load operations dashboard', message: error.message });
+    }
+});
+
+router.get('/ml-health', authenticate, authorize('admin', 'observer'), async (req, res) => {
+    try {
+        const live = await mlHealthService.checkOnce();
+        res.json({ success: true, mlHealth: live });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to check ML health', message: error.message });
     }
 });
 

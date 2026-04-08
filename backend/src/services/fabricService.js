@@ -66,6 +66,31 @@ class FabricService {
         return result;
     }
 
+    verifyMerkleProof(proof, expectedLeafValue) {
+        if (!proof) return false;
+        if (typeof proof.valid === 'boolean') return proof.valid;
+
+        const crypto = require('crypto');
+        const hash = (v) => crypto.createHash('sha256').update(v).digest('hex');
+
+        const leafHash = String(proof.leafHash || proof.leaf || hash(String(expectedLeafValue || ''))).toLowerCase();
+        const root = String(proof.merkleRoot || proof.root || '').toLowerCase();
+        const path = Array.isArray(proof.proof) ? proof.proof : [];
+        if (!root || !path.length) return false;
+
+        let computed = leafHash;
+        for (const step of path) {
+            const sibling = String(step?.hash || step?.sibling || '').toLowerCase();
+            if (!sibling) return false;
+            const position = String(step?.position || step?.side || 'right').toLowerCase();
+            computed = position === 'left'
+                ? hash(`${sibling}${computed}`)
+                : hash(`${computed}${sibling}`);
+        }
+
+        return computed === root;
+    }
+
     getBreaker(actionName) {
         if (this.breakers.has(actionName)) {
             return this.breakers.get(actionName);
