@@ -2,12 +2,19 @@ const Student = require('../models/student.model.js');
 const { broadcastMessage } = require('../services/websocket.service.js');
 const logger = require('../utils/logger.js');
 
+const getAdminScope = (req) => {
+    if (req.user?.adminRole === 'SUPER_ADMIN') return {};
+    if (req.user?.adminId) return { admin_id: req.user.adminId };
+    return {};
+};
+
 /**
  * Get all students
  */
 exports.getAllStudents = async (req, res) => {
     try {
         const students = await Student.findAll({
+            where: getAdminScope(req),
             order: [['createdAt', 'DESC']]
         });
         res.json(students);
@@ -22,7 +29,12 @@ exports.getAllStudents = async (req, res) => {
  */
 exports.getStudentById = async (req, res) => {
     try {
-        const student = await Student.findByPk(req.params.id);
+        const student = await Student.findOne({
+            where: {
+                student_id: req.params.id,
+                ...getAdminScope(req),
+            },
+        });
         if (!student) {
             return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
@@ -51,7 +63,18 @@ exports.createStudent = async (req, res) => {
              return res.status(400).json({ status: 'error', message: 'Roll Number too long (Max 20 chars)' });
         }
 
-        const student = await Student.create({ name, roll_number, department, course, program });
+        if (!department || !course || !program) {
+            return res.status(400).json({ status: 'error', message: 'Department, course, and program are required' });
+        }
+
+        const student = await Student.create({
+            name,
+            roll_number,
+            department,
+            course,
+            program,
+            admin_id: req.user.adminId || null,
+        });
         
         // Broadcast new student creation in real-time
         broadcastMessage('STUDENT_CREATED', student);
@@ -71,7 +94,15 @@ exports.createStudent = async (req, res) => {
  */
 exports.updateStudent = async (req, res) => {
     try {
-        const student = await Student.findByPk(req.params.id);
+        const student = await Student.findOne({
+            where: {
+                student_id: req.params.id,
+                ...getAdminScope(req),
+            },
+        });
+        if (!student) {
+            return res.status(404).json({ status: 'error', message: 'Student not found' });
+        }
         const { name, roll_number } = req.body;
         if (name && name.length > 50) {
             return res.status(400).json({ status: 'error', message: 'Name must be under 50 characters' });
@@ -102,7 +133,12 @@ exports.updateStudent = async (req, res) => {
  */
 exports.deleteStudent = async (req, res) => {
     try {
-        const student = await Student.findByPk(req.params.id);
+        const student = await Student.findOne({
+            where: {
+                student_id: req.params.id,
+                ...getAdminScope(req),
+            },
+        });
         if (!student) {
             return res.status(404).json({ status: 'error', message: 'Student not found' });
         }
@@ -143,12 +179,13 @@ exports.seedStudents = async (req, res) => {
                 name: randomName,
                 department: departments[Math.floor(Math.random() * departments.length)],
                 course: courses[Math.floor(Math.random() * courses.length)],
-                program: programs[Math.floor(Math.random() * programs.length)]
+                program: programs[Math.floor(Math.random() * programs.length)],
+                admin_id: req.user.adminId || null,
             });
         }
         
         await Student.sync(); // Ensure table exists
-        await Student.destroy({ where: {}, truncate: true });
+        await Student.destroy({ where: getAdminScope(req), truncate: false });
         const createdStudents = await Student.bulkCreate(sampleStudents);
         
         // Broadcast refresh signal for students

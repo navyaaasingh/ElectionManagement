@@ -2,8 +2,13 @@ const express = require('express');
 const { Candidate, Election  } = require('../models/index.js');
 const fabricService = require('../services/fabricService.js');
 const { authenticate, authorize  } = require('../middleware/auth.middleware.js');
+const { csrfProtection } = require('../middleware/csrf.middleware.js');
 
 const router = express.Router();
+const canAccessElection = (req, election) => {
+    if (req.user?.adminRole === 'SUPER_ADMIN') return true;
+    return !!(req.user?.adminId && election.created_by_admin_id === req.user.adminId);
+};
 
 /**
  * GET /api/v1/candidates
@@ -22,7 +27,7 @@ router.get('/', async (req, res) => {
             include: [{
                 model: Election,
                 as: 'election',
-                attributes: ['election_name', 'election_type', 'status'],
+                attributes: ['name', 'election_type', 'status', 'created_by_admin_id'],
             }],
             order: [['full_name', 'ASC']],
         });
@@ -82,7 +87,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/v1/candidates
  * Register a new candidate (Admin only)
  */
-router.post('/', authenticate, authorize('admin'), async (req, res) => {
+router.post('/', authenticate, authorize('admin'), csrfProtection, async (req, res) => {
     try {
         const {
             electionId,
@@ -112,7 +117,14 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
         }
 
         // Cannot add candidates to active/completed elections
-        if (['active', 'completed', 'cancelled'].includes(election.status)) {
+        if (!canAccessElection(req, election)) {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only add candidates to your own elections',
+            });
+        }
+
+        if (['ACTIVE', 'COMPLETED', 'CANCELLED'].includes(election.status)) {
             return res.status(403).json({
                 success: false,
                 error: `Cannot add candidates to election in ${election.status} status`,
@@ -179,7 +191,7 @@ router.post('/', authenticate, authorize('admin'), async (req, res) => {
  * PUT /api/v1/candidates/:id
  * Update candidate details (Admin only)
  */
-router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
+router.put('/:id', authenticate, authorize('admin'), csrfProtection, async (req, res) => {
     try {
         const candidate = await Candidate.findByPk(req.params.id, {
             include: [{
@@ -196,7 +208,14 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
         }
 
         // Check election status
-        if (['active', 'completed', 'cancelled'].includes(candidate.election.status)) {
+        if (!canAccessElection(req, candidate.election)) {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only update candidates in your own elections',
+            });
+        }
+
+        if (['ACTIVE', 'COMPLETED', 'CANCELLED'].includes(candidate.election.status)) {
             return res.status(403).json({
                 success: false,
                 error: `Cannot update candidate in ${candidate.election.status} election`,
@@ -232,7 +251,7 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res) => {
  * DELETE /api/v1/candidates/:id
  * Delete candidate (Admin only, only from upcoming elections)
  */
-router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
+router.delete('/:id', authenticate, authorize('admin'), csrfProtection, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -251,7 +270,14 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
         }
 
         // Only allow deletion from upcoming elections
-        if (candidate.election.status !== 'upcoming') {
+        if (!canAccessElection(req, candidate.election)) {
+            return res.status(403).json({
+                success: false,
+                error: 'You can only delete candidates from your own elections',
+            });
+        }
+
+        if (candidate.election.status !== 'PENDING') {
             return res.status(403).json({
                 success: false,
                 error: 'Can only delete candidates from upcoming elections',
@@ -276,4 +302,3 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res) => {
 });
 
 module.exports = router;
-

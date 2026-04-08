@@ -60,12 +60,13 @@ exports.authorize = (...allowedRoles) => {
             });
         }
 
-        const hasRole = allowedRoles.includes(req.user.role);
+        const normalizedRoles = allowedRoles.flat();
+        const hasRole = normalizedRoles.includes(req.user.role);
 
         if (!hasRole) {
             return res.status(403).json({
                 error: 'Access denied',
-                message: `Required roles: ${allowedRoles.join(', ')}`,
+                message: `Required roles: ${normalizedRoles.join(', ')}`,
             });
         }
 

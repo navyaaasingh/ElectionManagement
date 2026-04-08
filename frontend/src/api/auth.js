@@ -79,6 +79,9 @@ export async function adminLogin(credentials) {
     setToken(data.token);
     localStorage.setItem('admin_info', JSON.stringify(data.user));
     localStorage.setItem('auth_type', 'admin');
+    if (data.csrfToken) {
+      localStorage.setItem('csrf_token', data.csrfToken);
+    }
   }
   return data;
 }
@@ -98,6 +101,7 @@ export function logout() {
   localStorage.removeItem('voter_info');
   localStorage.removeItem('admin_info');
   localStorage.removeItem('auth_type');
+  localStorage.removeItem('csrf_token');
 }
 
 export function getStoredVoter() {

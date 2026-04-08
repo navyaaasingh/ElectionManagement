@@ -44,12 +44,25 @@ const VotingRecord = sequelize.define('voting_records', {
         type: DataTypes.STRING(64),
         comment: 'SHA-256 hash of biometric + timestamp for verification',
     },
+    biometric_hash_salted: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        comment: 'SHA-256(biometricHash:voterId:electionId:terminalId) to reduce collision/replay risk',
+    },
+    request_nonce: {
+        type: DataTypes.STRING(128),
+        allowNull: true,
+        comment: 'Client nonce for replay protection',
+    },
 }, {
     indexes: [
         { unique: true, fields: ['voter_id', 'election_id'] },
+        { fields: ['voter_id', 'election_id'] },
         { fields: ['election_id'] },
         { fields: ['vote_timestamp'] },
         { fields: ['blockchain_tx_id'] },
+        { fields: ['verification_hash'] },
+        { fields: ['request_nonce'] },
     ],
     timestamps: true,
     tableName: 'voting_records',

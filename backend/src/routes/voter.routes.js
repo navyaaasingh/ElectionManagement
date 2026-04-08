@@ -7,13 +7,18 @@ const AuditLog = require('../models/auditLog.model.js');
 
 
 const router = express.Router();
+const getAdminScope = (req) => {
+    if (req.user?.adminRole === 'SUPER_ADMIN') return {};
+    if (req.user?.adminId) return { admin_id: req.user.adminId };
+    return {};
+};
 
 /**
  * @route   GET /api/v1/voters
  * @desc    Get all voters (paginated)
  * @access  Admin only
  */
-router.get('/', authenticate, authorize(['admin']), async (req, res) => {
+router.get('/', authenticate, authorize('admin'), async (req, res) => {
     try {
         const {
             status,
@@ -23,7 +28,7 @@ router.get('/', authenticate, authorize(['admin']), async (req, res) => {
             search,
         } = req.query;
 
-        const where = {};
+        const where = { ...getAdminScope(req) };
 
         if (status) {
             where.status = status;
@@ -86,7 +91,11 @@ router.get('/:voterId', authenticate, async (req, res) => {
             });
         }
 
-        const voter = await Voter.findByPk(voterId);
+        const voter = await Voter.findOne({
+            where: req.user.role === 'admin'
+                ? { voter_id: voterId, ...getAdminScope(req) }
+                : { voter_id: voterId },
+        });
 
         if (!voter) {
             return res.status(404).json({
@@ -118,7 +127,7 @@ router.get('/:voterId', authenticate, async (req, res) => {
  * @desc    Update voter details
  * @access  Admin only
  */
-router.put('/:voterId', authenticate, authorize(['admin']), async (req, res) => {
+router.put('/:voterId', authenticate, authorize('admin'), async (req, res) => {
     try {
         const { voterId } = req.params;
         const {
@@ -128,7 +137,7 @@ router.put('/:voterId', authenticate, authorize(['admin']), async (req, res) => 
             status,
         } = req.body;
 
-        const voter = await Voter.findByPk(voterId);
+        const voter = await Voter.findOne({ where: { voter_id: voterId, ...getAdminScope(req) } });
 
         if (!voter) {
             return res.status(404).json({
@@ -194,7 +203,7 @@ router.get('/:voterId/voting-history', authenticate, async (req, res) => {
             where: { voter_id: voterId },
             include: [{
                 model: Election,
-                attributes: ['election_id', 'election_name', 'election_type', 'start_date', 'end_date'],
+                attributes: ['election_id', 'name', 'election_type', 'start_date', 'end_date'],
             }],
             order: [['voted_at', 'DESC']],
         });
@@ -220,11 +229,12 @@ router.get('/:voterId/voting-history', authenticate, async (req, res) => {
  * @desc    Get voter statistics
  * @access  Admin only
  */
-router.get('/stats/summary', authenticate, authorize(['admin']), async (req, res) => {
+router.get('/stats/summary', authenticate, authorize('admin'), async (req, res) => {
     try {
-        const totalVoters = await Voter.count();
-        const activeVoters = await Voter.count({ where: { status: 'active' } });
-        const blockedVoters = await Voter.count({ where: { status: 'blocked' } });
+        const scope = getAdminScope(req);
+        const totalVoters = await Voter.count({ where: scope });
+        const activeVoters = await Voter.count({ where: { ...scope, status: 'active' } });
+        const blockedVoters = await Voter.count({ where: { ...scope, status: 'suspended' } });
 
         // Voters by district
         const votersByDistrict = await Voter.findAll({
@@ -232,6 +242,7 @@ router.get('/stats/summary', authenticate, authorize(['admin']), async (req, res
                 'district_id',
                 [sequelize.fn('COUNT', sequelize.col('voter_id')), 'count'],
             ],
+            where: scope,
             group: ['district_id'],
         });
 

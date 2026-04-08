@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getMlHealth } from '../api/ml.js'
 import { getAuditLogs } from '../api/admin.js'
 import { loadElectionSnapshot } from '../lib/electionSnapshot.js'
+import { getOperationsDashboard } from '../api/operations.js'
+import socket from '../lib/socket.js'
 
 export default function ObserverDashBoard() {
   const [tab, setTab] = useState('overview')
@@ -10,14 +12,16 @@ export default function ObserverDashBoard() {
   const [auditLogs, setAuditLogs] = useState([])
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [ops, setOps] = useState({ terminalHealth: { online: 0, offline: 0, total: 0 }, turnout: { byDistrict: [], byTerminal: [] } })
 
   useEffect(() => {
     async function load() {
       try {
-        const [snapshotResponse, mlResponse, auditResponse] = await Promise.allSettled([
+        const [snapshotResponse, mlResponse, auditResponse, opsResponse] = await Promise.allSettled([
           loadElectionSnapshot(),
           getMlHealth(),
-          getAuditLogs({ limit: 50 })
+          getAuditLogs({ limit: 50 }),
+          getOperationsDashboard(),
         ])
 
         if (snapshotResponse.status === 'fulfilled') {
@@ -39,6 +43,10 @@ export default function ObserverDashBoard() {
           console.log('Observer audit monitoring: Access restricted to institutional roles.');
           setAuditLogs([]);
         }
+
+        if (opsResponse.status === 'fulfilled') {
+          setOps(opsResponse.value);
+        }
       } finally {
         setLoading(false)
       }
@@ -46,7 +54,24 @@ export default function ObserverDashBoard() {
 
     load()
     const interval = setInterval(load, 30000) // Poll every 30s
-    return () => clearInterval(interval)
+
+    socket.connect()
+    const offFraud = socket.on('FRAUD_ALERT', (alert) => {
+      setAlerts((prev) => [{ ...alert, timestamp: alert.timestamp || new Date().toISOString() }, ...prev].slice(0, 100))
+    })
+    const offSos = socket.on('SOS_ALERT', (alert) => {
+      setAlerts((prev) => [{ ...alert, event_type: 'SOS_ALERT', timestamp: alert.timestamp || new Date().toISOString() }, ...prev].slice(0, 100))
+    })
+    const offTerminal = socket.on('TERMINAL_STATUS_UPDATE', () => {
+      load()
+    })
+
+    return () => {
+      clearInterval(interval)
+      offFraud()
+      offSos()
+      offTerminal()
+    }
   }, [])
 
   const summary = useMemo(() => {
@@ -131,6 +156,10 @@ export default function ObserverDashBoard() {
             <span>Alert count</span>
             <strong>{alerts.length}</strong>
           </article>
+          <article className="surface-card stat-card">
+            <span>Terminals online</span>
+            <strong>{ops.terminalHealth?.online ?? 0}/{ops.terminalHealth?.total ?? 0}</strong>
+          </article>
         </div>
 
         {tab === 'overview' ? (
@@ -149,6 +178,7 @@ export default function ObserverDashBoard() {
                   </strong>
                 </div>
                 <div><span>High-risk signals</span><strong>{alerts.length} anomalies detected</strong></div>
+                <div><span>Terminal health</span><strong>{ops.terminalHealth?.offline ?? 0} offline</strong></div>
               </div>
             </div>
 
@@ -234,15 +264,17 @@ export default function ObserverDashBoard() {
                   <th>Status</th>
                   <th>Last active</th>
                   <th>District</th>
+                  <th>Votes</th>
                 </tr>
               </thead>
               <tbody>
-                {[...new Set(auditLogs.map(l => l.metadata?.terminalId).filter(Boolean))].map((tid) => (
-                  <tr key={tid}>
-                    <td>{tid}</td>
-                    <td>Online</td>
-                    <td>Active now</td>
+                {(ops.turnout?.byTerminal || []).map((item) => (
+                  <tr key={item.terminal_id}>
+                    <td>{item.terminal_id}</td>
+                    <td>{(ops.terminalHealth?.offline ?? 0) > 0 ? 'Mixed' : 'Online'}</td>
+                    <td>Live</td>
                     <td>Institutional</td>
+                    <td>{item.votes}</td>
                   </tr>
                 ))}
               </tbody>

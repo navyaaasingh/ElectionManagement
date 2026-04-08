@@ -2,17 +2,74 @@ const express = require('express');
 const { Election, Candidate  } = require('../models/index.js');
 const fabricService = require('../services/fabricService.js');
 const { authenticate  } = require('../middleware/auth.middleware.js');
+const { resultsLimiter } = require('../middleware/rateLimit.middleware.js');
+const { redisClient } = require('../db/index.js');
 
 const router = express.Router();
+
+/**
+ * GET /api/v1/results/:electionId/preview
+ * Preview results before certification (admin/observer only)
+ */
+router.get('/:electionId/preview', authenticate, resultsLimiter, async (req, res) => {
+    try {
+        const { electionId } = req.params;
+        const election = await Election.findByPk(electionId, {
+            include: [{ model: Candidate, as: 'candidates' }],
+        });
+        if (!election) {
+            return res.status(404).json({ success: false, error: 'Election not found' });
+        }
+
+        let results = [];
+        try {
+            results = await fabricService.getResults(electionId);
+        } catch {}
+
+        const candidatesWithVotes = election.candidates.map((candidate) => {
+            const result = results.find((r) => r.candidateId === candidate.candidate_id);
+            return {
+                candidate_id: candidate.candidate_id,
+                full_name: candidate.full_name,
+                party_name: candidate.party_name,
+                voteCount: result ? result.voteCount : 0,
+            };
+        }).sort((a, b) => b.voteCount - a.voteCount);
+
+        res.json({
+            success: true,
+            uncertified: true,
+            election: {
+                election_id: election.election_id,
+                election_name: election.name,
+                election_type: election.election_type,
+                status: String(election.status || '').toLowerCase(),
+            },
+            preview: candidatesWithVotes,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Failed to preview results', message: error.message });
+    }
+});
 
 /**
  * GET /api/v1/results/:electionId
  * Get election results
  * Public endpoint (no auth required for completed elections)
  */
-router.get('/:electionId', async (req, res) => {
+router.get('/:electionId', resultsLimiter, async (req, res) => {
     try {
         const { electionId } = req.params;
+        const cacheKey = `results:election:${electionId}`;
+
+        try {
+            const cached = await redisClient.get(cacheKey);
+            if (cached) {
+                return res.json(JSON.parse(cached));
+            }
+        } catch (cacheErr) {
+            console.warn('Results cache read failed:', cacheErr.message);
+        }
 
         // Verify election exists
         const election = await Election.findByPk(electionId, {
@@ -30,7 +87,7 @@ router.get('/:electionId', async (req, res) => {
         }
 
         // Only show results for completed elections
-        if (election.status === 'upcoming') {
+        if (election.status === 'PENDING') {
             return res.status(403).json({
                 success: false,
                 error: 'Results not available for upcoming elections',
@@ -65,34 +122,40 @@ router.get('/:electionId', async (req, res) => {
 
         // Calculate winner (if election completed)
         let winner = null;
-        if (election.status === 'completed' && candidatesWithVotes.length > 0) {
+        if (election.status === 'COMPLETED' && candidatesWithVotes.length > 0) {
             winner = candidatesWithVotes[0];
         }
 
-        res.json({
+        const payload = {
             success: true,
             election: {
                 election_id: election.election_id,
-                election_name: election.election_name,
+                election_name: election.name,
                 election_type: election.election_type,
-                status: election.status,
+                status: String(election.status || '').toLowerCase(),
                 start_date: election.start_date,
                 end_date: election.end_date,
             },
             results: candidatesWithVotes,
             summary: {
-                totalVoters: election.total_voters,
-                totalVotesCast: election.total_votes_cast,
-                turnoutPercentage: election.total_voters > 0
-                    ? ((election.total_votes_cast / election.total_voters) * 100).toFixed(2)
-                    : '0.00',
+                totalVoters: null,
+                totalVotesCast: candidatesWithVotes.reduce((sum, c) => sum + (c.voteCount || 0), 0),
+                turnoutPercentage: null,
                 winner: winner ? {
                     name: winner.full_name,
                     party: winner.party_name,
                     votes: winner.voteCount,
                 } : null,
             },
-        });
+        };
+
+        try {
+            await redisClient.set(cacheKey, JSON.stringify(payload), { EX: Number(process.env.RESULTS_CACHE_TTL_SEC || 15) });
+        } catch (cacheErr) {
+            console.warn('Results cache write failed:', cacheErr.message);
+        }
+
+        res.json(payload);
 
     } catch (error) {
         console.error('Get results error:', error.message);
@@ -108,7 +171,7 @@ router.get('/:electionId', async (req, res) => {
  * GET /api/v1/results/:electionId/district/:districtId
  * Get election results by district
  */
-router.get('/:electionId/district/:districtId', async (req, res) => {
+router.get('/:electionId/district/:districtId', resultsLimiter, async (req, res) => {
     try {
         const { electionId, districtId } = req.params;
 
@@ -171,7 +234,7 @@ router.get('/:electionId/district/:districtId', async (req, res) => {
  * GET /api/v1/results/:electionId/export
  * Export election results as CSV (authenticated)
  */
-router.get('/:electionId/export', authenticate, async (req, res) => {
+router.get('/:electionId/export', authenticate, resultsLimiter, async (req, res) => {
     try {
         const { electionId } = req.params;
 
@@ -208,7 +271,7 @@ router.get('/:electionId/export', authenticate, async (req, res) => {
         const csv = csvHeader + csvRows;
 
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="${election.election_name}_results_${Date.now()}.csv"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${election.name}_results_${Date.now()}.csv"`);
         res.send(csv);
 
     } catch (error) {

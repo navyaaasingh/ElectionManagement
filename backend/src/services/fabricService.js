@@ -219,6 +219,20 @@ class FabricService {
     }
 
     /**
+     * Get merkle proof for a vote / tx hash, if chaincode supports it.
+     */
+    async getMerkleProof(voteOrTxId) {
+        try {
+            if (!this.contract) await this.connect();
+            const payload = await this.contract.evaluateTransaction('GetMerkleProof', voteOrTxId);
+            return JSON.parse(payload.toString());
+        } catch (error) {
+            console.warn('Fabric - GetMerkleProof not available:', error.message);
+            return null;
+        }
+    }
+
+    /**
      * Create a new election on blockchain
      */
     async createElection(electionId, name, startDate, endDate, createdBy) {

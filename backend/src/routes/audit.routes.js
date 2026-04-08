@@ -8,7 +8,7 @@ const router = express.Router();
  * @desc    Get audit logs with filters
  * @access  Admin only
  */
-router.get('/', authenticate, authorize(['admin', 'observer']), async (req, res) => {
+router.get('/', authenticate, authorize('admin', 'observer'), async (req, res) => {
     try {
         const {
             eventType,
@@ -70,7 +70,7 @@ router.get('/', authenticate, authorize(['admin', 'observer']), async (req, res)
  * @desc    Get audit log statistics
  * @access  Admin only
  */
-router.get('/stats', authenticate, authorize(['admin']), async (req, res) => {
+router.get('/stats', authenticate, authorize('admin'), async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
@@ -131,7 +131,7 @@ router.get('/stats', authenticate, authorize(['admin']), async (req, res) => {
  * @desc    Get audit logs for specific voter
  * @access  Admin only
  */
-router.get('/voter/:voterId', authenticate, authorize(['admin']), async (req, res) => {
+router.get('/voter/:voterId', authenticate, authorize('admin'), async (req, res) => {
     try {
         const { voterId } = req.params;
 

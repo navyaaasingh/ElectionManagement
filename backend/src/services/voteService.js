@@ -3,12 +3,18 @@
  * Handles vote submission, blockchain integration, and offline reconciliation
  */
 
-const { Voter, Election, Candidate, VotingRecord } = require('../models/index.js');
+const { Voter, Election, Candidate, VotingRecord, VoteNonce } = require('../models/index.js');
 const fabricService = require('./fabricService.js');
 const zkpService = require('./zkpService.js');
 const logger = require('../utils/logger.js');
 const AuditLog = require('../models/auditLog.model.js');
 const crypto = require('crypto');
+const { sequelize, redisClient } = require('../db/index.js');
+
+const isTruthy = (value, defaultValue = false) => {
+    if (value === undefined || value === null) return defaultValue;
+    return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+};
 
 class VoteService {
     /**
@@ -25,18 +31,38 @@ class VoteService {
             terminalId,
             timestamp,
             encryptedVote,
-            zkpCommitment
+            zkpCommitment,
+            nonce,
+            biometricHash
         } = voteData;
 
         try {
-            // 1. Verify election is active (use lowercase as stored in DB)
+            const requiresZkp = isTruthy(process.env.ENFORCE_ZKP_VERIFICATION, process.env.NODE_ENV === 'production');
+            const enforceReplayProtection = isTruthy(process.env.ENFORCE_VOTE_REPLAY_PROTECTION, true);
+            const allowedSkewMs = Number(process.env.VOTE_TIMESTAMP_WINDOW_MS || 5 * 60 * 1000);
+            const nowMs = Date.now();
+            const requestTs = Number(timestamp || nowMs);
+
+            if (Number.isNaN(requestTs)) {
+                throw new Error('Invalid vote timestamp');
+            }
+
+            if (enforceReplayProtection && Math.abs(nowMs - requestTs) > allowedSkewMs) {
+                throw new Error('Vote timestamp outside allowed window');
+            }
+
+            const effectiveNonce = nonce || crypto.createHash('sha256')
+                .update(`${voterId}:${electionId}:${candidateId}:${requestTs}:${terminalId}`)
+                .digest('hex');
+
+            // 1. Verify election is active
             const election = await Election.findByPk(electionId);
 
             if (!election) {
                 throw new Error('Election not found');
             }
 
-            if (election.status !== 'active') {
+            if (election.status !== 'ACTIVE') {
                 throw new Error(`Election is not accepting votes (status: ${election.status})`);
             }
 
@@ -49,16 +75,7 @@ class VoteService {
                 throw new Error('Voting period has ended');
             }
 
-            // 2. Check if voter has already voted
-            const existingVote = await VotingRecord.findOne({
-                where: { voter_id: voterId, election_id: electionId }
-            });
-
-            if (existingVote) {
-                throw new Error('Voter has already voted in this election');
-            }
-
-            // 3. Verify candidate exists in this election
+            // 2. Verify candidate exists in this election
             const candidate = await Candidate.findOne({
                 where: { candidate_id: candidateId, election_id: electionId }
             });
@@ -67,84 +84,182 @@ class VoteService {
                 throw new Error('Invalid candidate for this election');
             }
 
-            // 4. Verify ZKP commitment (skip if not provided — optional for demo)
+            // 3. Verify ZKP commitment (enforceable via env)
+            if (requiresZkp && (!zkpCommitment || !encryptedVote)) {
+                throw new Error('ZKP commitment and encrypted vote are required');
+            }
             if (zkpCommitment && encryptedVote) {
                 try {
                     const zkpValid = await zkpService.verifyCommitment(zkpCommitment, encryptedVote);
                     if (!zkpValid) throw new Error('Invalid ZKP commitment');
                 } catch (zkpErr) {
-                    logger.warn('ZKP verification skipped or failed:', { error: zkpErr.message });
-                    // Non-fatal in demo mode
+                    if (requiresZkp) {
+                        throw zkpErr;
+                    }
+                    logger.warn('ZKP verification skipped (non-fatal in relaxed mode):', { error: zkpErr.message });
                 }
             }
 
-            // 5. Generate vote ID and verification hash
-            const voteId = crypto.randomUUID();
-            const verificationHash = crypto.createHash('sha256')
-                .update(`${voterId}:${electionId}:${candidateId}:${Date.now()}`)
-                .digest('hex');
-
-            // 6. Submit to blockchain (non-fatal if Fabric is down)
+            let voteId = null;
+            let verificationHash = null;
             let blockchainTxId = null;
-            try {
-                const blockchainTx = await fabricService.submitVote({
-                    voteId,
-                    electionId,
-                    candidateId: encryptedVote || candidateId,
-                    districtId,
-                    terminalId,
-                    verificationHash,
-                    zkpCommitment,
-                    timestamp: timestamp || Date.now()
-                });
-                blockchainTxId = blockchainTx?.txId || blockchainTx || verificationHash;
-            } catch (fabricErr) {
-                logger.warn('Blockchain unavailable, falling back to DB-only vote:', { error: fabricErr.message });
-                blockchainTxId = verificationHash; // DB-only fallback
-            }
+            let saltedBiometricHash = null;
 
-            // 7. Record in database (only fields defined in VotingRecord model)
-            await VotingRecord.create({
-                voter_id: voterId,
-                election_id: electionId,
-                terminal_id: terminalId,
-                verification_hash: verificationHash,
-                blockchain_tx_id: blockchainTxId,
-                vote_timestamp: new Date(timestamp || Date.now()),
+            // 4. Transactional section to avoid check-insert race windows.
+            await sequelize.transaction(async (tx) => {
+                const voter = await Voter.findByPk(voterId, {
+                    transaction: tx,
+                    lock: tx.LOCK.UPDATE,
+                });
+
+                if (!voter) throw new Error('Voter not found');
+                if (voter.status !== 'active') throw new Error('Voter is not active');
+
+                // Enforce admin-scoped election eligibility
+                if (voter.admin_id && election.created_by_admin_id && voter.admin_id !== election.created_by_admin_id) {
+                    throw new Error('Voter is not eligible for this election');
+                }
+
+                const existingVote = await VotingRecord.findOne({
+                    where: { voter_id: voterId, election_id: electionId },
+                    transaction: tx,
+                    lock: tx.LOCK.UPDATE,
+                });
+                if (existingVote || voter.has_voted) {
+                    throw new Error('Voter has already voted in this election');
+                }
+
+                // Optional pre-flight blockchain status check (double-spend protection)
+                try {
+                    const chainStatus = await fabricService.checkVoterStatus(voterId, electionId);
+                    if (chainStatus?.hasVoted || chainStatus?.voted) {
+                        throw new Error('DOUBLE_VOTE_ATTEMPT: voter already marked as voted on blockchain');
+                    }
+                } catch (chainCheckErr) {
+                    // If blockchain status check endpoint unavailable, continue.
+                    logger.warn('Blockchain pre-check unavailable:', { error: chainCheckErr.message });
+                }
+
+                if (enforceReplayProtection) {
+                    const existingNonce = await VoteNonce.findOne({
+                        where: { voter_id: voterId, election_id: electionId, nonce: effectiveNonce },
+                        transaction: tx,
+                        lock: tx.LOCK.UPDATE,
+                    });
+                    if (existingNonce) {
+                        throw new Error('Replay detected: nonce already used');
+                    }
+
+                    await VoteNonce.create({
+                        voter_id: voterId,
+                        election_id: electionId,
+                        nonce: effectiveNonce,
+                        used_at: new Date(requestTs),
+                    }, { transaction: tx });
+                }
+
+                voteId = crypto.randomUUID();
+                const biometricInput = String(biometricHash || '');
+                saltedBiometricHash = crypto
+                    .createHash('sha256')
+                    .update(`${biometricInput}:${voterId}:${electionId}:${terminalId}`)
+                    .digest('hex');
+
+                verificationHash = crypto.createHash('sha256')
+                    .update(`${voterId}:${electionId}:${candidateId}:${requestTs}:${effectiveNonce}:${saltedBiometricHash}`)
+                    .digest('hex');
+
+                try {
+                    const blockchainTx = await fabricService.submitVote({
+                        voteId,
+                        voterId,
+                        electionId,
+                        candidateId: encryptedVote || candidateId,
+                        districtId,
+                        terminalId,
+                        verificationHash,
+                        zkpCommitment,
+                        timestamp: requestTs
+                    });
+                    blockchainTxId = blockchainTx?.txId || blockchainTx || verificationHash;
+                } catch (fabricErr) {
+                    logger.warn('Blockchain unavailable, falling back to DB-only vote:', { error: fabricErr.message });
+                    blockchainTxId = verificationHash;
+                }
+
+                await VotingRecord.create({
+                    voter_id: voterId,
+                    election_id: electionId,
+                    terminal_id: terminalId,
+                    verification_hash: verificationHash,
+                    biometric_hash_salted: saltedBiometricHash,
+                    request_nonce: effectiveNonce,
+                    blockchain_tx_id: blockchainTxId,
+                    vote_timestamp: new Date(requestTs),
+                }, { transaction: tx });
+
+                await voter.update({ has_voted: true }, { transaction: tx });
             });
 
-            // 8. Mark voter as having voted
-            await Voter.update(
-                { has_voted: true },
-                { where: { voter_id: voterId } }
-            );
+            // 5. Post-commit blockchain consistency check (best-effort)
+            try {
+                const chainStatusAfter = await fabricService.checkVoterStatus(voterId, electionId);
+                if (chainStatusAfter && !(chainStatusAfter.hasVoted || chainStatusAfter.voted)) {
+                    logger.warn('Possible chain/db mismatch after vote commit', { voterId, electionId, blockchainTxId });
+                }
+            } catch (error) {
+                logger.warn('Blockchain post-check unavailable:', { error: error.message });
+            }
 
-            // 9. Generate receipt
+            // 6. Generate receipt
             const receipt = this.generateReceipt({
                 voteId,
                 electionId,
-                timestamp: timestamp || Date.now(),
+                timestamp: requestTs,
                 blockchainTxId,
                 verificationHash,
                 zkpCommitment
             });
 
-            // 10. Async: fire telemetry + broadcast (non-fatal)
+            // 7. Async: fire telemetry + broadcast (non-fatal)
             try {
                 const { publishTelemetry } = require('./kafkaProducer.js');
                 await publishTelemetry('election-telemetry', 'VOTE_CAST', {
                     voterId, electionId, candidateId,
                     district: districtId, terminalId,
-                    timestamp: timestamp || Date.now(), voteId
+                    timestamp: requestTs, voteId,
+                    nonce: effectiveNonce
+                });
+            } catch { /* Kafka optional */ }
+
+            try {
+                const { publishPartitionedIoTBroadcast } = require('./kafkaProducer.js');
+                await publishPartitionedIoTBroadcast({
+                    electionId,
+                    districtId,
+                    messageType: 'IOT_VOTE_EVENT',
+                    data: {
+                        voteId,
+                        terminalId,
+                        timestamp: requestTs,
+                    },
                 });
             } catch { /* Kafka optional */ }
 
             try {
                 const { broadcastMessage } = require('./websocket.service.js');
-                broadcastMessage('VOTE_CAST', { electionId, candidateId, district: districtId, timestamp: timestamp || Date.now() });
+                broadcastMessage('VOTE_CAST', { electionId, candidateId, district: districtId, timestamp: requestTs });
             } catch { /* WebSocket optional */ }
 
-            // 11. Audit log (MongoDB)
+            // Invalidate cached results for this election
+            try {
+                const electionCacheKey = `results:election:${electionId}`;
+                await redisClient.del(electionCacheKey);
+            } catch (cacheErr) {
+                logger.warn('Failed to invalidate results cache', { error: cacheErr.message });
+            }
+
+            // 8. Audit log (MongoDB)
             try {
                 await AuditLog.create({
                     event_type: 'VOTE_CAST',
@@ -155,6 +270,7 @@ class VoteService {
                         terminal_id: terminalId,
                         blockchain_tx: blockchainTxId,
                         receipt_id: receipt.receiptId,
+                        nonce: effectiveNonce,
                     }
                 });
             } catch { /* audit non-fatal */ }
@@ -167,6 +283,9 @@ class VoteService {
             };
 
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                error.message = 'Voter has already voted in this election';
+            }
             logger.error('Error casting vote:', { error: error.message });
 
             // Log failed attempt
@@ -218,15 +337,12 @@ class VoteService {
         const { voteId, electionId, timestamp, blockchainTxId, verificationHash, zkpCommitment } = voteInfo;
 
         const receiptId = verificationHash
-            ? verificationHash.substring(0, 12).toUpperCase()
-            : crypto.createHash('sha256')
-                .update(voteId + timestamp.toString())
-                .digest('hex')
-                .substring(0, 12)
-                .toUpperCase();
+            ? verificationHash.toUpperCase()
+            : crypto.createHash('sha256').update(voteId + timestamp.toString()).digest('hex').toUpperCase();
 
         return {
             receiptId,
+            receiptShortId: receiptId.slice(0, 12),
             voteId,
             electionId,
             timestamp,
@@ -241,11 +357,14 @@ class VoteService {
      */
     async verifyReceipt(receiptId) {
         try {
-            // Lookup by verification_hash prefix in VotingRecord (PostgreSQL)
-            const { Op } = require('sequelize');
+            const normalized = String(receiptId || '').toLowerCase();
+            if (!/^[a-f0-9]{64}$/.test(normalized)) {
+                return { verified: false, error: 'Invalid receipt format. Full 64-char hash required.' };
+            }
+
             const record = await VotingRecord.findOne({
                 where: {
-                    verification_hash: { [Op.like]: `${receiptId.toLowerCase()}%` }
+                    verification_hash: normalized
                 }
             });
 
@@ -256,9 +375,11 @@ class VoteService {
             // Try to verify on blockchain
             let blockchainVote = null;
             let integrityVerified = false;
+            let merkleProof = null;
             try {
                 blockchainVote = await fabricService.getVoteById(record.blockchain_tx_id);
                 integrityVerified = !!blockchainVote;
+                merkleProof = await fabricService.getMerkleProof(record.blockchain_tx_id);
             } catch { /* blockchain optional */ }
 
             return {
@@ -271,6 +392,7 @@ class VoteService {
                     terminalId: record.terminal_id,
                     integrityVerified,
                     blockNumber: blockchainVote?.blockNumber || null,
+                    merkleProof: merkleProof || null,
                 }
             };
 

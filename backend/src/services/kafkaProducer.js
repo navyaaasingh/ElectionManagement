@@ -12,6 +12,7 @@ const kafka = new Kafka({
 
 const producer = kafka.producer();
 let isConnected = false;
+const topicSafe = (value) => String(value || 'unknown').replace(/[^a-zA-Z0-9._-]/g, '_');
 
 const initKafkaProducer = async () => {
     try {
@@ -59,8 +60,27 @@ const disconnectKafkaProducer = async () => {
     }
 };
 
+const publishPartitionedIoTBroadcast = async ({ electionId, districtId, messageType, data = {} }) => {
+    const electionTopic = `iot.broadcast.${topicSafe(electionId)}`;
+    const districtTopic = districtId
+        ? `iot.broadcast.${topicSafe(electionId)}.${topicSafe(districtId)}`
+        : null;
+
+    const payload = {
+        type: messageType,
+        timestamp: new Date().toISOString(),
+        data,
+    };
+
+    const topics = districtTopic ? [electionTopic, districtTopic] : [electionTopic];
+    const results = await Promise.all(topics.map(async (topic) => publishTelemetry(topic, messageType, payload)));
+    return results.every(Boolean);
+};
+
 module.exports = {
     initKafkaProducer,
     publishTelemetry,
     disconnectKafkaProducer
+    ,
+    publishPartitionedIoTBroadcast
 };

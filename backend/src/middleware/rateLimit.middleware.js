@@ -48,3 +48,15 @@ exports.resultsLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+// Receipt verification limiter - tighter to avoid brute-force hash probing
+exports.verifyLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 20,
+    message: {
+        error: 'Too many verification attempts',
+        message: 'Please wait before trying again',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});

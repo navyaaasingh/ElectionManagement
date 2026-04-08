@@ -6,6 +6,9 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_U
 function getToken() {
   return localStorage.getItem('auth_token');
 }
+function getCsrfToken() {
+  return localStorage.getItem('csrf_token');
+}
 
 export function setToken(token) {
   if (token) localStorage.setItem('auth_token', token);
@@ -16,13 +19,16 @@ export function clearToken() {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('voter_info');
   localStorage.removeItem('admin_info');
+  localStorage.removeItem('csrf_token');
 }
 
 async function request(path, options = {}) {
   const token = getToken();
+  const csrfToken = getCsrfToken();
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
     ...(options.headers || {}),
   };
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getStoredVoter } from '../api/auth.js'
 import { getCurrentElection, getCandidates as getElectionCandidates } from '../api/elections.js'
-import { castVote as submitVote, getVoterStatus } from '../api/votes.js'
+import { castVote as submitVote, getVoterStatus, raiseSOS } from '../api/votes.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
 const LOCALES = [
@@ -186,6 +186,20 @@ const INITIAL_STATE = {
   showingManifesto: null,
 }
 
+const OFFLINE_QUEUE_KEY = 'pending_vote_queue_v1'
+
+function loadPendingQueue() {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function savePendingQueue(queue) {
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
+}
+
 function text(locale, key) {
   return COPY[locale]?.[key] || COPY.en[key] || key
 }
@@ -262,6 +276,11 @@ export default function VoterUI() {
   const [locale, setLocale] = useState('en')
   const [state, setState] = useState(INITIAL_STATE)
   const [loading, setLoading] = useState(false)
+  const [a11y, setA11y] = useState({ largeText: false, highContrast: false, voice: true })
+  const [scanAttempts, setScanAttempts] = useState(0)
+  const [manualOverrideCode, setManualOverrideCode] = useState('')
+  const [offlineQueue, setOfflineQueue] = useState(loadPendingQueue())
+  const [printError, setPrintError] = useState(null)
 
   // Idle timeout to secure institutional terminal
   useEffect(() => {
@@ -292,6 +311,7 @@ export default function VoterUI() {
   }, [state.step])
 
   useEffect(() => {
+    if (!a11y.voice) return undefined
     const voiceKey =
       state.step === 'welcome' ? 'welcome' :
       state.step === 'scan' ? 'scanning' :
@@ -300,7 +320,7 @@ export default function VoterUI() {
 
     if (!voiceKey) return undefined
     return speak(locale, voiceKey)
-  }, [locale, state.step])
+  }, [a11y.voice, locale, state.step])
 
   useEffect(() => {
     if (state.step !== 'scan' || state.error) return undefined
@@ -344,8 +364,10 @@ export default function VoterUI() {
           election,
           step: 'verified',
         }))
+        setScanAttempts(0)
       } catch (error) {
         if (cancelled) return
+        setScanAttempts((count) => count + 1)
         setState((current) => ({
           ...current,
           error: `Identity verification failed: ${error.message || 'The session timed out.'}`,
@@ -438,18 +460,38 @@ export default function VoterUI() {
           district: state.voter?.districtId || 'General',
           biometricHash: 'verified-session-token',
           terminalId: 'TERM-WEB-001',
+          nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          timestamp: Date.now(),
         })
 
         if (cancelled) return
         setState((current) => ({ ...current, receipt: response.receipt || response }))
       } catch (error) {
         if (cancelled) return
+        const queuedVote = {
+          candidateId: state.selectedCandidate?.id,
+          voterId: state.voter?.voterId,
+          electionId: state.election?.election_id || state.election?.id,
+          district: state.voter?.districtId || 'General',
+          biometricHash: 'verified-session-token',
+          terminalId: 'TERM-WEB-001',
+          nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          timestamp: Date.now(),
+        }
+        const nextQueue = [...loadPendingQueue(), queuedVote]
+        savePendingQueue(nextQueue)
+        setOfflineQueue(nextQueue)
         setState((current) => ({
           ...current,
-          error: `Ballot submission failed: ${error.message}. Your vote has NOT been recorded yet.`,
-          note: 'The system will attempt to reconcile this vote when connectivity is restored, or you can retry now.',
-          receipt: null,
-          step: 'confirm' // Send back to confirm step so they can retry
+          error: `Network issue: ${error.message}. Vote queued for secure sync.`,
+          note: `Offline queue size: ${nextQueue.length}. Estimated sync ETA: ${Math.max(2, nextQueue.length * 2)} minutes.`,
+          receipt: {
+            receiptId: `OFFLINE-${Date.now()}`,
+            queued: true,
+            etaMinutes: Math.max(2, nextQueue.length * 2),
+            qrCode: JSON.stringify(queuedVote),
+          },
+          step: 'receipt'
         }))
       } finally {
         if (!cancelled) setLoading(false)
@@ -462,10 +504,41 @@ export default function VoterUI() {
     }
   }, [locale, state.election, state.receipt, state.selectedCandidate, state.step, state.voter])
 
+  useEffect(() => {
+    if (!offlineQueue.length) return undefined
+    let cancelled = false
+
+    const syncPending = async () => {
+      const queue = loadPendingQueue()
+      if (!queue.length) return
+
+      const remaining = []
+      for (const queuedVote of queue) {
+        try {
+          await submitVote(queuedVote)
+        } catch {
+          remaining.push(queuedVote)
+        }
+      }
+
+      if (!cancelled) {
+        savePendingQueue(remaining)
+        setOfflineQueue(remaining)
+      }
+    }
+
+    const id = window.setInterval(syncPending, 20000)
+    syncPending()
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [offlineQueue.length])
+
   const currentText = (key) => text(locale, key)
 
   return (
-    <div className="terminal-page">
+    <div className={`terminal-page${a11y.largeText ? ' terminal-large-text' : ''}${a11y.highContrast ? ' terminal-high-contrast' : ''}`}>
       <style>{styles}</style>
 
       <header className="terminal-topbar">
@@ -484,6 +557,31 @@ export default function VoterUI() {
               {entry.label}
             </button>
           ))}
+        </div>
+        <div className="terminal-locales" style={{ gap: '8px' }}>
+          <button type="button" className="terminal-locale" onClick={() => setA11y((v) => ({ ...v, largeText: !v.largeText }))}>A+</button>
+          <button type="button" className="terminal-locale" onClick={() => setA11y((v) => ({ ...v, highContrast: !v.highContrast }))}>Contrast</button>
+          <button type="button" className={`terminal-locale${a11y.voice ? ' active' : ''}`} onClick={() => setA11y((v) => ({ ...v, voice: !v.voice }))}>Voice</button>
+          <button
+            type="button"
+            className="terminal-locale"
+            onClick={async () => {
+              try {
+                await raiseSOS({
+                  terminalId: 'TERM-WEB-001',
+                  electionId: state.election?.election_id || state.election?.id,
+                  districtId: state.voter?.districtId,
+                  reason: 'VOTER_HELP_REQUEST',
+                  message: 'Voter requested on-booth assistance',
+                })
+                setState((c) => ({ ...c, note: 'Help request sent. Officer is being notified.' }))
+              } catch (err) {
+                setState((c) => ({ ...c, error: `Unable to send SOS: ${err.message}` }))
+              }
+            }}
+          >
+            HELP / SOS
+          </button>
         </div>
       </header>
 
@@ -522,6 +620,10 @@ export default function VoterUI() {
               </motion.div>
               <h2 style={{ fontSize: '2.2rem', fontWeight: 800 }}>{currentText('welcome')}</h2>
               <p style={{ maxWidth: '540px', fontSize: '1.1rem', lineHeight: 1.6 }}>{currentText('intro')}</p>
+              <p className="terminal-subtle" style={{ marginTop: '8px' }}>
+                Estimated wait time: {Math.max(1, (offlineQueue.length + 1) * 2)} minutes
+                {offlineQueue.length > 0 ? ` | Offline sync queue: ${offlineQueue.length}` : ''}
+              </p>
               
               <div className="terminal-consent" style={{ 
                 marginTop: '32px', 
@@ -585,14 +687,57 @@ export default function VoterUI() {
               {state.error ? 'The system encountered an error communicating with the institutional identity server.' : currentText('scanHint')}
             </p>
             {state.error && (
-              <AnimatedButton
-                type="button" 
-                className="terminal-primary"
-                style={{ marginTop: '24px' }}
-                onClick={() => setState(c => ({ ...c, error: null, note: null }))}
-              >
-                {currentText('retry')}
-              </AnimatedButton>
+              <div style={{ marginTop: '24px', display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <AnimatedButton
+                  type="button" 
+                  className="terminal-primary"
+                  onClick={() => setState(c => ({ ...c, error: null, note: null }))}
+                >
+                  {currentText('retry')} ({scanAttempts}/3)
+                </AnimatedButton>
+                <AnimatedButton
+                  type="button"
+                  className="terminal-secondary"
+                  onClick={() => {
+                    setState((c) => ({
+                      ...c,
+                      voter: normalizeVoter({ ...getStoredVoter(), fullName: getStoredVoter()?.fullName || 'Photo Verified Voter' }),
+                      step: 'verified',
+                      error: null,
+                      note: 'Photo verification fallback used. Please retain officer approval log.',
+                    }))
+                  }}
+                >
+                  Photo Verify Fallback
+                </AnimatedButton>
+                <input
+                  type="password"
+                  placeholder="Officer override code"
+                  value={manualOverrideCode}
+                  onChange={(e) => setManualOverrideCode(e.target.value)}
+                  className="field-input"
+                  style={{ maxWidth: '220px' }}
+                />
+                <AnimatedButton
+                  type="button"
+                  className="terminal-secondary"
+                  onClick={() => {
+                    if (manualOverrideCode === (import.meta.env.VITE_OFFICER_OVERRIDE_CODE || '1234')) {
+                      setState((c) => ({
+                        ...c,
+                        voter: normalizeVoter({ ...getStoredVoter(), fullName: getStoredVoter()?.fullName || 'Manual Override Voter' }),
+                        step: 'verified',
+                        error: null,
+                        note: 'Manual officer override approved.',
+                      }))
+                    } else {
+                      setState((c) => ({ ...c, note: 'Invalid officer override code' }))
+                    }
+                  }}
+                >
+                  Manual Override
+                </AnimatedButton>
+              </div>
             )}
           </motion.section>
         )}
@@ -890,9 +1035,35 @@ export default function VoterUI() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0' }}>
                     <span style={{ fontWeight: 600, opacity: 0.6 }}>Verification</span>
-                    <strong style={{ color: 'var(--brand)' }}>100% Valid</strong>
+                    <strong style={{ color: state.receipt.queued ? '#f59e0b' : 'var(--brand)' }}>
+                      {state.receipt.queued ? `Queued (${state.receipt.etaMinutes}m ETA)` : '100% Valid'}
+                    </strong>
                   </div>
                 </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <AnimatedButton
+                    type="button"
+                    className="terminal-secondary"
+                    onClick={() => {
+                      try {
+                        setPrintError(null)
+                        window.print()
+                      } catch (err) {
+                        setPrintError(err.message || 'Print failed')
+                      }
+                    }}
+                  >
+                    Print Receipt
+                  </AnimatedButton>
+                </div>
+                {(printError || state.receipt.queued) && (
+                  <div className="receipt-card" style={{ width: '100%', maxWidth: '520px', padding: '20px', borderRadius: '20px', marginTop: '8px' }}>
+                    <div style={{ fontWeight: 700, marginBottom: '8px' }}>QR Fallback (scan this payload)</div>
+                    <code style={{ display: 'block', whiteSpace: 'pre-wrap', fontSize: '0.8rem' }}>
+                      {state.receipt.qrCode || JSON.stringify(state.receipt)}
+                    </code>
+                  </div>
+                )}
                 <AnimatedButton
                   type="button"
                   className="terminal-primary"
@@ -915,6 +1086,12 @@ export default function VoterUI() {
 }
 
 const styles = `
+  .terminal-large-text {
+    font-size: 1.15rem;
+  }
+  .terminal-high-contrast {
+    filter: contrast(1.2) saturate(1.1);
+  }
   .terminal-page {
     display: flex;
     flex: 1;

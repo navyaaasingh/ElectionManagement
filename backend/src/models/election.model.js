@@ -35,7 +35,15 @@ const Election = sequelize.define('elections', {
         validate: {
             isIn: [['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED']]
         }
-    }
+    },
+    created_by_admin_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'admin_users',
+            key: 'admin_id',
+        },
+    },
 }, {
     indexes: [
         { fields: ['start_date', 'end_date'] },

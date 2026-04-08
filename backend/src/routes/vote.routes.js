@@ -2,15 +2,51 @@ const express = require('express');
 const crypto = require('crypto');
 const fabricService = require('../services/fabricService.js');
 const { Voter, VotingRecord, Election } = require('../models/index.js');
-const { voteLimiter } = require('../middleware/rateLimit.middleware.js');
+const { voteLimiter, resultsLimiter, verifyLimiter } = require('../middleware/rateLimit.middleware.js');
 const { authenticate } = require('../middleware/auth.middleware.js');
 const logger = require('../utils/logger.js');
 const { publishTelemetry } = require('../services/kafkaProducer.js');
 const { broadcastMessage } = require('../services/websocket.service.js');
+const { redisClient } = require('../db/index.js');
 
 const router = express.Router();
 
 const voteService = require('../services/voteService.js');
+
+/**
+ * POST /api/v1/votes/sos
+ * Emergency/SOS from terminal UI (voter or admin authenticated)
+ */
+router.post('/sos', authenticate, async (req, res) => {
+    try {
+        const {
+            terminalId = 'TERM-WEB-001',
+            electionId = null,
+            districtId = null,
+            reason = 'HELP_REQUEST',
+            message = 'Voter requested assistance',
+        } = req.body || {};
+
+        const payload = {
+            terminalId,
+            electionId,
+            districtId,
+            reason,
+            message,
+            raisedBy: req.user?.voterId || req.user?.adminId || 'unknown',
+            timestamp: new Date().toISOString(),
+        };
+
+        try {
+            broadcastMessage('SOS_ALERT', payload);
+        } catch {}
+
+        logger.warn('SOS_ALERT_RAISED', payload);
+        return res.status(201).json({ success: true, message: 'SOS alert sent', alert: payload });
+    } catch (error) {
+        return res.status(500).json({ success: false, error: 'Failed to send SOS alert', message: error.message });
+    }
+});
 
 /**
  * POST /api/v1/votes/cast
@@ -34,7 +70,9 @@ router.post('/cast', voteLimiter, async (req, res) => {
             biometricHash,
             terminalId,
             zkpCommitment,
-            encryptedVote
+            encryptedVote,
+            nonce,
+            timestamp
         } = req.body;
 
         // Validate required fields
@@ -55,7 +93,8 @@ router.post('/cast', voteLimiter, async (req, res) => {
             biometricHash,
             zkpCommitment,
             encryptedVote,
-            timestamp: Date.now()
+            nonce,
+            timestamp: timestamp || Date.now()
         });
 
         res.status(201).json({
@@ -130,9 +169,19 @@ router.get('/status/:voterId/:electionId', async (req, res) => {
  * GET /api/v1/votes/results/:electionId
  * Get election results
  */
-router.get('/results/:electionId', async (req, res) => {
+router.get('/results/:electionId', resultsLimiter, async (req, res) => {
     try {
         const { electionId } = req.params;
+        const cacheKey = `results:election:${electionId}`;
+
+        try {
+            const cached = await redisClient.get(cacheKey);
+            if (cached) {
+                return res.json(JSON.parse(cached));
+            }
+        } catch (cacheErr) {
+            logger.warn('Vote results cache read failed', { error: cacheErr.message });
+        }
 
         // Get results from blockchain (source of truth)
         const results = await fabricService.getResults(electionId);
@@ -140,17 +189,27 @@ router.get('/results/:electionId', async (req, res) => {
         // Get election details from database
         const election = await Election.findByPk(electionId);
 
-        res.json({
+        const totalVotesCast = await VotingRecord.count({ where: { election_id: electionId } });
+
+        const payload = {
             election: election ? {
                 id: election.election_id,
                 name: election.name,
                 type: election.election_type,
-                status: election.status,
-                totalVotesCast: election.total_votes_cast || 0,
+                status: String(election.status || '').toLowerCase(),
+                totalVotesCast,
             } : null,
             blockchainResults: results,
             timestamp: new Date().toISOString(),
-        });
+        };
+
+        try {
+            await redisClient.set(cacheKey, JSON.stringify(payload), { EX: Number(process.env.RESULTS_CACHE_TTL_SEC || 15) });
+        } catch (cacheErr) {
+            logger.warn('Vote results cache write failed', { error: cacheErr.message });
+        }
+
+        res.json(payload);
 
     } catch (error) {
         console.error('Results retrieval error:', error.message);
@@ -165,43 +224,23 @@ router.get('/results/:electionId', async (req, res) => {
  * GET /api/v1/votes/verify/:receiptId
  * Verify a vote receipt against the blockchain
  */
-router.get('/verify/:receiptId', async (req, res) => {
+router.get('/verify/:receiptId', verifyLimiter, async (req, res) => {
     try {
         const { receiptId } = req.params;
 
-        // Look up the voting record by verification hash or receipt ID
-        const votingRecord = await VotingRecord.findOne({
-            where: { verification_hash: receiptId },
-        });
+        const result = await voteService.verifyReceipt(receiptId);
 
-        if (!votingRecord) {
+        if (!result.verified) {
             return res.status(404).json({
                 success: false,
                 verified: false,
-                error: 'Receipt not found on blockchain.',
+                error: result.error || 'Receipt not found on blockchain.',
             });
-        }
-
-        // Attempt to verify on blockchain
-        let blockchainVote = null;
-        try {
-            blockchainVote = await fabricService.getVoteById(votingRecord.blockchain_tx_id);
-        } catch (err) {
-            // Blockchain might not be available, fall back to DB record
         }
 
         res.json({
             success: true,
-            verified: true,
-            vote: {
-                voteId: votingRecord.record_id,
-                timestamp: votingRecord.vote_timestamp,
-                blockchainTxId: votingRecord.blockchain_tx_id,
-                blockNumber: blockchainVote?.blockNumber || null,
-                districtId: blockchainVote?.district || null,
-                terminalId: votingRecord.terminal_id,
-                integrityVerified: !!blockchainVote,
-            },
+            ...result,
         });
 
     } catch (error) {

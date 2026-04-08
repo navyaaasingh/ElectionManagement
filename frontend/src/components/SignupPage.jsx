@@ -68,28 +68,22 @@ export default function SignupPage() {
     setStatus('loading')
     try {
       const rawAadhaar = form.aadharNumber.replace(/\s/g, '')
+      const districtIdValue = form.districtId.trim()
+      const districtId = /^[0-9a-fA-F-]{36}$/.test(districtIdValue) ? districtIdValue : undefined
       
-      // Demo mode: accept demo Aadhaar without hitting backend verification
-      if (rawAadhaar === DEMO_AADHAAR) {
-        // Simulate registration success in demo mode
-        setVoterId('DEMO-' + Math.random().toString(36).substr(2, 9).toUpperCase())
-        setStatus('success')
-        return
-      }
-
       const response = await registerVoter({
         rollNumber: form.rollNumber,
         email: form.email,
         password: form.password,
         fullName: form.fullName,
         aadharNumber: rawAadhaar,
-        districtId: form.districtId
+        districtId
       })
       
-      setVoterId(response.voterId)
+      setVoterId(response.voterId || response.voter?.voterId)
       setStatus('success')
     } catch (err) {
-      setStatus({ error: err.error || 'Registration failed. Please try again.' })
+      setStatus({ error: err.error || err.message || 'Registration failed. Please try again.' })
     }
   }
 

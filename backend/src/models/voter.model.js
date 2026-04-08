@@ -39,9 +39,9 @@ const Voter = sequelize.define('voters', {
     },
     biometric_hash: {
         type: DataTypes.STRING(64),
-        allowNull: true, // Nullable initially for email signup
+        allowNull: true, // Nullable for email/password registered voters (collected at kiosk later)
         unique: true,
-        comment: 'SHA-256 hash of fingerprint template (optional if using WebAuthn)',
+        comment: 'SHA-256 hash of fingerprint template (optional if using WebAuthn or email signup)',
     },
     district_id: {
         type: DataTypes.UUID,
@@ -80,6 +80,14 @@ const Voter = sequelize.define('voters', {
         type: DataTypes.STRING(255),
         allowNull: true,
         comment: 'Unique ID of the device used for registration/voting',
+    },
+    admin_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'admin_users',
+            key: 'admin_id',
+        },
     },
 }, {
     timestamps: true,

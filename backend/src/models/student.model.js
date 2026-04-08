@@ -28,6 +28,14 @@ const Student = sequelize.define('students', {
         type: DataTypes.STRING(100),
         allowNull: false,
     },
+    admin_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+            model: 'admin_users',
+            key: 'admin_id',
+        },
+    },
 }, {
     timestamps: true,
     tableName: 'students',

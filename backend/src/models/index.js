@@ -6,6 +6,9 @@ const VotingRecord = require('./votingRecord.model.js');
 const AuditLog = require('./auditLog.model.js');
 const Student = require('./student.model.js');
 const District = require('./district.model.js');
+const AdminUser = require('./adminUser.model.js');
+const VoteNonce = require('./voteNonce.model.js');
+const PollApproval = require('./pollApproval.model.js');
 
 // Define relationships
 Voter.hasMany(VoterPasskey, {
@@ -45,6 +48,42 @@ Voter.belongsTo(District, {
     as: 'district',
 });
 
+AdminUser.hasMany(Student, {
+    foreignKey: 'admin_id',
+    as: 'students',
+});
+Student.belongsTo(AdminUser, {
+    foreignKey: 'admin_id',
+    as: 'admin',
+});
+
+AdminUser.hasMany(Voter, {
+    foreignKey: 'admin_id',
+    as: 'voters',
+});
+Voter.belongsTo(AdminUser, {
+    foreignKey: 'admin_id',
+    as: 'admin',
+});
+
+AdminUser.hasMany(Election, {
+    foreignKey: 'created_by_admin_id',
+    as: 'elections',
+});
+Election.belongsTo(AdminUser, {
+    foreignKey: 'created_by_admin_id',
+    as: 'created_by_admin',
+});
+
+Election.hasMany(PollApproval, {
+    foreignKey: 'election_id',
+    as: 'poll_approvals',
+});
+PollApproval.belongsTo(Election, {
+    foreignKey: 'election_id',
+    as: 'election',
+});
+
 Election.hasMany(VotingRecord, {
     foreignKey: 'election_id',
     as: 'voting_records',
@@ -63,6 +102,24 @@ VotingRecord.belongsTo(Voter, {
     as: 'voter',
 });
 
+Voter.hasMany(VoteNonce, {
+    foreignKey: 'voter_id',
+    as: 'vote_nonces',
+});
+VoteNonce.belongsTo(Voter, {
+    foreignKey: 'voter_id',
+    as: 'voter',
+});
+
+Election.hasMany(VoteNonce, {
+    foreignKey: 'election_id',
+    as: 'vote_nonces',
+});
+VoteNonce.belongsTo(Election, {
+    foreignKey: 'election_id',
+    as: 'election',
+});
+
 module.exports = {
     Voter,
     VoterPasskey,
@@ -72,4 +129,7 @@ module.exports = {
     AuditLog,
     Student,
     District,
+    AdminUser,
+    VoteNonce,
+    PollApproval,
 };

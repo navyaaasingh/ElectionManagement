@@ -157,7 +157,7 @@ export default function StudentManagement() {
             />
             {seeding ? 'Processing Context...' : 'Seed 100 Entries'}
           </button>
-          <button className="button button--primary" onClick={() => { setCurrentStudent(null); setFormData({ name: '', roll_number: '', department: '', course: '', program: '' }); setShowModal(true); }}>
+          <button className="button button--primary" onClick={() => { setCurrentStudent(null); resetFormData(); setShowModal(true); }}>
             <UserPlus size={16} style={{ marginRight: '8px' }} />
             Add Student
           </button>

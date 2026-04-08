@@ -57,3 +57,19 @@ export function getCandidatesByElection(electionId) {
   const qs = new URLSearchParams({ electionId }).toString();
   return api.get(`/api/v1/candidates?${qs}`);
 }
+
+/**
+ * Get voter registrations with student cross-reference (admin only).
+ * Returns registered voters + unregistered students summary.
+ */
+export function getRegistrations(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return api.get(`/api/v1/auth/registrations${qs ? '?' + qs : ''}`);
+}
+
+/**
+ * Approve a pending voter registration (admin only).
+ */
+export function approveVoter(voterId) {
+  return api.put(`/api/v1/auth/registrations/${voterId}/approve`, {});
+}

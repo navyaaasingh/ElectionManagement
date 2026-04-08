@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { adminLogin, getStoredAdmin, logout } from '../api/auth.js'
-import { getAuditLogs, getVoters } from '../api/admin.js'
+import { getAuditLogs, getVoters, getRegistrations, approveVoter } from '../api/admin.js'
 import { createElection, getCandidates, getElections, updateElectionStatus } from '../api/elections.js'
 import { getMlHealth } from '../api/ml.js'
+import { exportAuditLogs, runWhatIfSimulation } from '../api/operations.js'
 import { summarizeElections } from '../lib/electionSnapshot.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
@@ -61,6 +62,13 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState([])
   const [candidates, setCandidates] = useState([])
   const [mlHealth, setMlHealth] = useState(null)
+  const [registrations, setRegistrations] = useState(null)
+  const [regSearch, setRegSearch] = useState('')
+  const [regFilter, setRegFilter] = useState('')
+  const [approving, setApproving] = useState({})
+  const [auditFilter, setAuditFilter] = useState({ eventType: '', startDate: '', endDate: '' })
+  const [simulationInput, setSimulationInput] = useState({ registeredVoters: 1000, expectedTurnoutPct: 60, terminals: 10, avgVoteSeconds: 45, anomalyRatePct: 1.5 })
+  const [simulationResult, setSimulationResult] = useState(null)
 
   useEffect(() => {
     if (!admin) return
@@ -73,17 +81,19 @@ export default function AdminPage() {
 
         const activeElectionId = electionList.find((election) => election.status === 'active')?.election_id || electionList[0]?.election_id
 
-        const [votersResponse, auditResponse, mlResponse, candidateResponse] = await Promise.allSettled([
+        const [votersResponse, auditResponse, mlResponse, candidateResponse, registrationsResponse] = await Promise.allSettled([
           getVoters({ limit: 10 }),
           getAuditLogs({ limit: 10 }),
           getMlHealth(),
           activeElectionId ? getCandidates(activeElectionId) : Promise.resolve({ candidates: [] }),
+          getRegistrations({ limit: 50 }),
         ])
 
         if (votersResponse.status === 'fulfilled') setVoters(votersResponse.value.voters || [])
         if (auditResponse.status === 'fulfilled') setAuditLogs(auditResponse.value.logs || auditResponse.value.auditLogs || [])
         if (mlResponse.status === 'fulfilled') setMlHealth(mlResponse.value)
         if (candidateResponse.status === 'fulfilled') setCandidates(candidateResponse.value.candidates || [])
+        if (registrationsResponse.status === 'fulfilled') setRegistrations(registrationsResponse.value)
       } catch (err) {
         setError(err.message || 'Failed to load admin data.')
       }
@@ -105,6 +115,76 @@ export default function AdminPage() {
     setError(null)
     setAdmin(user)
   }
+
+  const handleApproveVoter = useCallback(async (voterId) => {
+    setApproving(prev => ({ ...prev, [voterId]: true }))
+    try {
+      await approveVoter(voterId)
+      // Refresh registrations
+      const fresh = await getRegistrations({ limit: 50 })
+      setRegistrations(fresh)
+    } catch (err) {
+      alert(`Approval failed: ${err.message}`)
+    } finally {
+      setApproving(prev => ({ ...prev, [voterId]: false }))
+    }
+  }, [])
+
+  const handleAuditSearch = useCallback(async () => {
+    try {
+      const data = await getAuditLogs({
+        limit: 100,
+        eventType: auditFilter.eventType || undefined,
+        startDate: auditFilter.startDate || undefined,
+        endDate: auditFilter.endDate || undefined,
+      })
+      setAuditLogs(data.logs || data.auditLogs || [])
+    } catch (err) {
+      alert(`Failed to load audit logs: ${err.message}`)
+    }
+  }, [auditFilter])
+
+  const handleAuditExport = useCallback(async () => {
+    try {
+      const csv = await exportAuditLogs({
+        eventType: auditFilter.eventType || undefined,
+        startDate: auditFilter.startDate || undefined,
+        endDate: auditFilter.endDate || undefined,
+      })
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `audit_export_${Date.now()}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert(`Export failed: ${err.message}`)
+    }
+  }, [auditFilter])
+
+  const handleSimulationRun = useCallback(async () => {
+    try {
+      const data = await runWhatIfSimulation(simulationInput)
+      setSimulationResult(data.simulation || null)
+    } catch (err) {
+      alert(`Simulation failed: ${err.message}`)
+    }
+  }, [simulationInput])
+
+  const filteredRegistrations = useMemo(() => {
+    const regs = registrations?.registrations || []
+    return regs.filter(r => {
+      const matchSearch = !regSearch || 
+        (r.full_name || '').toLowerCase().includes(regSearch.toLowerCase()) ||
+        (r.email || '').toLowerCase().includes(regSearch.toLowerCase()) ||
+        (r.roll_number || '').toLowerCase().includes(regSearch.toLowerCase())
+      const matchFilter = !regFilter || r.status === regFilter
+      return matchSearch && matchFilter
+    })
+  }, [registrations, regSearch, regFilter])
 
   const [isCreating, setIsCreating] = useState(false)
   const [newElection, setNewElection] = useState({
@@ -159,6 +239,7 @@ export default function AdminPage() {
         <div className="workspace-nav">
           {[
             ['dashboard', 'Dashboard'],
+            ['registrations', 'Registrations'],
             ['elections', 'Elections'],
             ['candidates', 'Candidates'],
             ['voters', 'Voters'],
@@ -262,6 +343,197 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+
+            <div className="surface-card" style={{ marginTop: '24px', padding: '24px' }}>
+              <div className="section-heading section-heading--compact" style={{ marginBottom: '16px' }}>
+                <p className="section-kicker">What-if</p>
+                <h2>Election Simulation</h2>
+              </div>
+              <div className="field-grid" style={{ marginBottom: '14px' }}>
+                <label>
+                  <span className="field-label">Registered voters</span>
+                  <input className="field-input" type="number" value={simulationInput.registeredVoters} onChange={(e) => setSimulationInput((s) => ({ ...s, registeredVoters: Number(e.target.value) }))} />
+                </label>
+                <label>
+                  <span className="field-label">Expected turnout %</span>
+                  <input className="field-input" type="number" value={simulationInput.expectedTurnoutPct} onChange={(e) => setSimulationInput((s) => ({ ...s, expectedTurnoutPct: Number(e.target.value) }))} />
+                </label>
+                <label>
+                  <span className="field-label">Terminals</span>
+                  <input className="field-input" type="number" value={simulationInput.terminals} onChange={(e) => setSimulationInput((s) => ({ ...s, terminals: Number(e.target.value) }))} />
+                </label>
+                <label>
+                  <span className="field-label">Avg vote sec</span>
+                  <input className="field-input" type="number" value={simulationInput.avgVoteSeconds} onChange={(e) => setSimulationInput((s) => ({ ...s, avgVoteSeconds: Number(e.target.value) }))} />
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <AnimatedButton className="button button--primary" onClick={handleSimulationRun}>Run Simulation</AnimatedButton>
+                {simulationResult && (
+                  <div style={{ fontSize: '0.9rem', color: 'var(--ink-soft)' }}>
+                    Votes: <strong>{simulationResult.projectedVotes}</strong> | Capacity/hr: <strong>{simulationResult.capacityPerHour}</strong> | Hours: <strong>{simulationResult.estimatedHoursRequired}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+
+        {tab === 'registrations' ? (
+          <motion.div
+            key="registrations"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+          >
+            {/* Summary stat cards */}
+            <StaggerContainer className="stats-grid" style={{ marginBottom: '32px' }}>
+              {[
+                { label: 'Total Students', value: registrations?.summary?.totalStudents ?? '—', color: 'inherit' },
+                { label: 'Registered', value: registrations?.summary?.totalRegistered ?? '—', color: 'var(--brand)' },
+                { label: 'Pending Approval', value: registrations?.summary?.pendingApproval ?? '—', color: 'var(--warning, #f59e0b)' },
+                { label: 'Not Registered', value: registrations?.summary?.notRegistered ?? '—', color: 'var(--success)' },
+              ].map(({ label, value, color }) => (
+                <StaggerItem key={label}>
+                  <article className="surface-card stat-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--ink-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{label}</span>
+                    <strong style={{ fontSize: '2rem', marginTop: '8px', color }}>{value}</strong>
+                  </article>
+                </StaggerItem>
+              ))}
+            </StaggerContainer>
+
+            {/* Registered Voters Table */}
+            <div className="surface-card" style={{ padding: '32px', marginBottom: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <p className="section-kicker">Voter registration roll</p>
+                  <h2 style={{ margin: 0 }}>Registered Students</h2>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    className="field-input"
+                    placeholder="Search name, email, roll no…"
+                    value={regSearch}
+                    onChange={e => setRegSearch(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '0.9rem', minWidth: '220px' }}
+                  />
+                  <select
+                    className="field-input"
+                    value={regFilter}
+                    onChange={e => setRegFilter(e.target.value)}
+                    style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '0.9rem' }}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              {registrations === null ? (
+                <p style={{ opacity: 0.5, textAlign: 'center', padding: '40px' }}>Loading registrations…</p>
+              ) : filteredRegistrations.length === 0 ? (
+                <p style={{ opacity: 0.5, textAlign: 'center', padding: '40px' }}>No registrations found.</p>
+              ) : (
+                <div className="table-shell">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Roll No.</th>
+                        <th>Email</th>
+                        <th>Registered On</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <AnimatePresence>
+                        {filteredRegistrations.map((reg, idx) => (
+                          <motion.tr
+                            key={reg.voter_id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: idx * 0.04 }}
+                          >
+                            <td><strong>{reg.full_name}</strong></td>
+                            <td style={{ fontFamily: 'monospace', opacity: 0.7 }}>{reg.roll_number || '—'}</td>
+                            <td style={{ opacity: 0.8 }}>{reg.email || '—'}</td>
+                            <td style={{ opacity: 0.7, fontSize: '0.85rem' }}>
+                              {reg.createdAt ? new Date(reg.createdAt).toLocaleDateString('en-IN') : '—'}
+                            </td>
+                            <td>
+                              <span style={{
+                                padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+                                background: reg.status === 'active' ? 'var(--success-soft)' : reg.status === 'pending' ? 'rgba(245,158,11,0.12)' : 'var(--surface-sunken)',
+                                color: reg.status === 'active' ? 'var(--success)' : reg.status === 'pending' ? '#d97706' : 'inherit',
+                              }}>
+                                {(reg.status || 'pending').toUpperCase()}
+                              </span>
+                            </td>
+                            <td>
+                              {reg.status === 'pending' ? (
+                                <AnimatedButton
+                                  className="button button--primary button--inline"
+                                  disabled={approving[reg.voter_id]}
+                                  onClick={() => handleApproveVoter(reg.voter_id)}
+                                >
+                                  {approving[reg.voter_id] ? 'Approving…' : 'Approve'}
+                                </AnimatedButton>
+                              ) : (
+                                <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '0.85rem' }}>✓ Active</span>
+                              )}
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Unregistered Students Table */}
+            {registrations?.unregisteredStudents?.length > 0 && (
+              <div className="surface-card" style={{ padding: '32px' }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <p className="section-kicker">Outreach needed</p>
+                  <h2 style={{ margin: 0 }}>Students Not Yet Registered</h2>
+                  <p style={{ color: 'var(--ink-soft)', fontSize: '0.9rem', marginTop: '4px' }}>
+                    Showing up to 20 students from the student database who have no voter registration.
+                  </p>
+                </div>
+                <div className="table-shell">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Roll No.</th>
+                        <th>Department</th>
+                        <th>Course</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.unregisteredStudents.map((s, idx) => (
+                        <motion.tr
+                          key={s.student_id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: idx * 0.04 }}
+                        >
+                          <td><strong>{s.name}</strong></td>
+                          <td style={{ fontFamily: 'monospace', opacity: 0.7 }}>{s.roll_number}</td>
+                          <td style={{ opacity: 0.8 }}>{s.department}</td>
+                          <td style={{ opacity: 0.7 }}>{s.course}</td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : null}
 
@@ -475,6 +747,13 @@ export default function AdminPage() {
           exit={{ opacity: 0, y: -15 }}
           className="surface-card table-shell"
         >
+          <div style={{ display: 'flex', gap: '10px', padding: '12px', flexWrap: 'wrap' }}>
+            <input className="field-input" placeholder="Event type" value={auditFilter.eventType} onChange={(e) => setAuditFilter((f) => ({ ...f, eventType: e.target.value }))} style={{ maxWidth: '180px' }} />
+            <input className="field-input" type="date" value={auditFilter.startDate} onChange={(e) => setAuditFilter((f) => ({ ...f, startDate: e.target.value }))} style={{ maxWidth: '160px' }} />
+            <input className="field-input" type="date" value={auditFilter.endDate} onChange={(e) => setAuditFilter((f) => ({ ...f, endDate: e.target.value }))} style={{ maxWidth: '160px' }} />
+            <AnimatedButton className="button button--ghost button--inline" onClick={handleAuditSearch}>Search</AnimatedButton>
+            <AnimatedButton className="button button--primary button--inline" onClick={handleAuditExport}>Export CSV</AnimatedButton>
+          </div>
           <table className="data-table">
             <thead>
               <tr>

@@ -97,6 +97,242 @@ const connectRedis = async () => {
     }
 };
 
+const ensureSchemaCompatibility = async () => {
+    const qi = sequelize.getQueryInterface();
+    const dialect = sequelize.getDialect();
+
+    const ensureColumn = async (tableName, columnName, definition) => {
+        const table = await qi.describeTable(tableName);
+        if (!table[columnName]) {
+            await qi.addColumn(tableName, columnName, definition);
+            console.log(`✅ Added missing column ${tableName}.${columnName}`);
+        }
+    };
+
+    try {
+        await qi.describeTable('admin_users');
+    } catch {
+        await qi.createTable('admin_users', {
+            admin_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            username: {
+                type: Sequelize.STRING(255),
+                allowNull: false,
+                unique: true,
+            },
+            email: {
+                type: Sequelize.STRING(255),
+                allowNull: false,
+                unique: true,
+            },
+            password_hash: {
+                type: Sequelize.STRING(255),
+                allowNull: false,
+            },
+            role: {
+                type: Sequelize.STRING(50),
+                allowNull: false,
+                defaultValue: 'ELECTION_OFFICER',
+            },
+            district_id: {
+                type: Sequelize.UUID,
+                allowNull: true,
+            },
+            is_active: {
+                type: Sequelize.BOOLEAN,
+                allowNull: false,
+                defaultValue: true,
+            },
+            last_login: {
+                type: Sequelize.DATE,
+                allowNull: true,
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table admin_users');
+    }
+
+    await ensureColumn('students', 'admin_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+    });
+    await ensureColumn('voters', 'admin_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+    });
+    await ensureColumn('elections', 'created_by_admin_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+    });
+    await ensureColumn('voting_records', 'biometric_hash_salted', {
+        type: Sequelize.STRING(64),
+        allowNull: true,
+    });
+    await ensureColumn('voting_records', 'request_nonce', {
+        type: Sequelize.STRING(128),
+        allowNull: true,
+    });
+
+    try {
+        await qi.describeTable('vote_nonces');
+    } catch {
+        await qi.createTable('vote_nonces', {
+            nonce_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            voter_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            election_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            nonce: {
+                type: Sequelize.STRING(128),
+                allowNull: false,
+            },
+            used_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table vote_nonces');
+    }
+
+    const addIndexIfMissing = async (table, fields, options = {}) => {
+        const indexName = options.name || `${table}_${fields.join('_')}_idx`;
+        try {
+            await qi.addIndex(table, fields, { ...options, name: indexName });
+            console.log(`✅ Added index ${indexName}`);
+        } catch {
+            // likely already exists
+        }
+    };
+
+    await addIndexIfMissing('voting_records', ['voter_id', 'election_id'], {
+        unique: true,
+        name: 'voting_records_voter_election_unique_idx',
+    });
+    await addIndexIfMissing('voting_records', ['verification_hash'], {
+        unique: dialect !== 'sqlite',
+        name: 'voting_records_verification_hash_idx',
+    });
+    await addIndexIfMissing('vote_nonces', ['voter_id', 'election_id', 'nonce'], {
+        unique: true,
+        name: 'vote_nonces_voter_election_nonce_unique_idx',
+    });
+
+    try {
+        await qi.describeTable('poll_approvals');
+    } catch {
+        await qi.createTable('poll_approvals', {
+            approval_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            election_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            requested_status: {
+                type: Sequelize.STRING(20),
+                allowNull: false,
+            },
+            requested_by_admin_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            approver_admin_ids: {
+                type: Sequelize.JSON,
+                allowNull: false,
+                defaultValue: [],
+            },
+            required_approvals: {
+                type: Sequelize.INTEGER,
+                allowNull: false,
+                defaultValue: 2,
+            },
+            status: {
+                type: Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'PENDING',
+            },
+            notes: {
+                type: Sequelize.TEXT,
+                allowNull: true,
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table poll_approvals');
+    }
+};
+
+const ensureBootstrapAdmin = async () => {
+    const bcrypt = require('bcryptjs');
+    const { AdminUser } = require('../models/index.js');
+
+    const username = process.env.ADMIN_USERNAME;
+    const password = process.env.ADMIN_PASSWORD;
+    const email = process.env.ADMIN_EMAIL || 'admin@election.local';
+    if (!username || !password) {
+        return;
+    }
+
+    const existing = await AdminUser.findOne({ where: { username } });
+    if (existing) {
+        return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await AdminUser.create({
+        username,
+        email,
+        password_hash: passwordHash,
+        role: 'SUPER_ADMIN',
+        is_active: true,
+    });
+    console.log(`✅ Bootstrapped admin user '${username}' from environment`);
+};
+
 // Test PostgreSQL connection
 const testPostgresConnection = async () => {
     try {
@@ -114,6 +350,7 @@ const initializeDatabases = async () => {
 
     // Postgres is usually required for core functionality
     await testPostgresConnection();
+    await ensureSchemaCompatibility();
 
     if (process.env.NODE_ENV === 'development') {
         const models = require('../models/index.js');
@@ -125,9 +362,12 @@ const initializeDatabases = async () => {
         connectMongoDB().catch(() => console.warn('⚠️ MongoDB failed (dev context preserved)'));
         connectRedis().catch(() => console.warn('⚠️ Redis failed (dev context preserved)'));
     } else {
+        await sequelize.sync();
         await connectMongoDB();
         await connectRedis();
     }
+
+    await ensureBootstrapAdmin();
 
     console.log('✅ Database initialization sequence completed');
 };

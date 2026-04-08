@@ -6,6 +6,7 @@
 const mqtt = require('mqtt');
 const logger = require('../utils/logger');
 const EventEmitter = require('events');
+const { publishPartitionedIoTBroadcast } = require('./kafkaProducer.js');
 
 class IoTService extends EventEmitter {
     constructor() {
@@ -224,6 +225,11 @@ class IoTService extends EventEmitter {
         };
 
         this.client.publish('election/command', JSON.stringify(message));
+        await publishPartitionedIoTBroadcast({
+            electionId,
+            messageType: 'IOT_ACTIVATE',
+            data: message,
+        });
 
         await logger.auditLog({
             event_type: 'TERMINALS_ACTIVATED',
@@ -246,6 +252,11 @@ class IoTService extends EventEmitter {
         };
 
         this.client.publish('election/command', JSON.stringify(message));
+        await publishPartitionedIoTBroadcast({
+            electionId,
+            messageType: 'IOT_DEACTIVATE',
+            data: message,
+        });
 
         await logger.auditLog({
             event_type: 'TERMINALS_DEACTIVATED',

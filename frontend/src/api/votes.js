@@ -32,3 +32,7 @@ export function verifyReceipt(receiptId) {
 export function getResults(electionId) {
   return api.get(`/api/v1/votes/results/${electionId}`);
 }
+
+export function raiseSOS(payload) {
+  return api.post('/api/v1/votes/sos', payload);
+}
