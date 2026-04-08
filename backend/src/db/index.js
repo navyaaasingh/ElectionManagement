@@ -3,6 +3,7 @@ const pg = require('pg');
 const mongoose = require('mongoose');
 const { createClient } = require('redis');
 const dotenv = require('dotenv');
+const { CONTEXT_SCHEMAS } = require('../contexts/context.config.js');
 
 dotenv.config({ path: require('path').resolve(__dirname, '../../../.env') });
 
@@ -433,6 +434,25 @@ const ensureSchemaCompatibility = async () => {
     await addIndexIfMissing('dead_letter_events', ['resolved', 'created_at'], {
         name: 'dead_letter_events_resolved_created_idx',
     });
+
+    if (dialect === 'postgres') {
+        const schemaToTables = {
+            [CONTEXT_SCHEMAS.voter]: ['voters', 'students'],
+            [CONTEXT_SCHEMAS.election]: ['elections', 'candidates', 'poll_approvals'],
+            [CONTEXT_SCHEMAS.vote]: ['voting_records', 'vote_nonces', 'outbox_events', 'dead_letter_events'],
+        };
+
+        for (const [schemaName, tables] of Object.entries(schemaToTables)) {
+            await sequelize.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
+            for (const tableName of tables) {
+                await sequelize.query(`
+                    CREATE OR REPLACE VIEW "${schemaName}"."${tableName}" AS
+                    SELECT * FROM public."${tableName}"
+                `);
+            }
+        }
+        console.log(`✅ Bounded context schemas/views ensured: ${Object.values(CONTEXT_SCHEMAS).join(', ')}`);
+    }
 };
 
 const ensureBootstrapAdmin = async () => {
@@ -481,17 +501,31 @@ const initializeDatabases = async () => {
     await testPostgresConnection();
     await ensureSchemaCompatibility();
 
+    const isTruthy = (value, defaultValue = false) => {
+        if (value === undefined || value === null) return defaultValue;
+        return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+    };
+    const useBoundedContexts = isTruthy(process.env.USE_BOUNDED_CONTEXTS, true);
+    const shouldRunSequelizeSync = sequelize.getDialect() === 'sqlite' || !useBoundedContexts;
+
     if (process.env.NODE_ENV === 'development') {
-        const models = require('../models/index.js');
-        // Synchronize all defined models with database
-        await sequelize.sync();
-        console.log('✅ SQLite database models synced');
+        if (shouldRunSequelizeSync) {
+            await sequelize.sync();
+            console.log('✅ Sequelize models synced');
+        } else {
+            console.log('ℹ️ Sequelize sync skipped in bounded-context mode (dev)');
+        }
 
         console.log('🚀 Starting MongoDB and Redis connections in background (dev mode)...');
         connectMongoDB().catch(() => console.warn('⚠️ MongoDB failed (dev context preserved)'));
         connectRedis().catch(() => console.warn('⚠️ Redis failed (dev context preserved)'));
     } else {
-        await sequelize.sync();
+        if (shouldRunSequelizeSync) {
+            await sequelize.sync();
+            console.log('✅ Sequelize models synced');
+        } else {
+            console.log('ℹ️ Sequelize sync skipped in bounded-context mode');
+        }
         await connectMongoDB();
         await connectRedis();
     }

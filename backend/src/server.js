@@ -36,6 +36,7 @@ const auditRoutes = require('./routes/audit.routes.js');
 const voterRoutes = require('./routes/voter.routes.js');
 const studentRoutes = require('./routes/student.routes.js');
 const operationsRoutes = require('./routes/operations.routes.js');
+const contextRoutes = require('./routes/context.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -119,6 +120,7 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/voters', voterRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/operations', operationsRoutes);
+app.use('/api/v1/contexts', contextRoutes);
 
 // Mock blockchain route for Verification Portal demo
 const blockchainMockRoutes = require('./routes/blockchain.mock.routes.js');

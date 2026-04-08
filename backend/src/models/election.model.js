@@ -1,5 +1,6 @@
 const { DataTypes  } = require('sequelize');
 const { sequelize  } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const Election = sequelize.define('elections', {
     election_id: {
@@ -44,13 +45,12 @@ const Election = sequelize.define('elections', {
             key: 'admin_id',
         },
     },
-}, {
+}, withSchemaOption('elections', {
     indexes: [
         { fields: ['start_date', 'end_date'] },
         { fields: ['status'] },
     ],
     timestamps: true,
-    tableName: 'elections',
-});
+}));
 
 module.exports = Election;

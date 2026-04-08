@@ -6,8 +6,10 @@ const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const { csrfProtection } = require('../middleware/csrf.middleware.js');
 const { sequelize } = require('../db/index.js');
 const logger = require('../utils/logger.js');
+const { getQualifiedTableName } = require('../contexts/context.config.js');
 
 const router = express.Router();
+const VOTING_RECORDS_TABLE = getQualifiedTableName('voting_records', sequelize.getDialect());
 
 const STATUS_MAP = {
     upcoming: 'PENDING',
@@ -159,7 +161,7 @@ router.get('/:id', async (req, res) => {
             `SELECT
                 COUNT(*)::int AS total_votes,
                 COUNT(DISTINCT voter_id)::int AS unique_voters
-             FROM voting_records
+             FROM ${VOTING_RECORDS_TABLE}
              WHERE election_id = :electionId`,
             { replacements: { electionId: election.election_id } }
         );

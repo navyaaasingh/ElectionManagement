@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const DeadLetterEvent = sequelize.define('dead_letter_events', {
     dead_letter_id: {
@@ -42,13 +43,12 @@ const DeadLetterEvent = sequelize.define('dead_letter_events', {
         type: DataTypes.DATE,
         allowNull: true,
     },
-}, {
-    tableName: 'dead_letter_events',
+}, withSchemaOption('dead_letter_events', {
     timestamps: true,
     indexes: [
         { fields: ['resolved', 'created_at'] },
         { fields: ['event_type', 'resolved'] },
     ],
-});
+}));
 
 module.exports = DeadLetterEvent;

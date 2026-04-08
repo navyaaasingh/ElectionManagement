@@ -11,7 +11,7 @@ const { redisClient } = require('../db/index.js');
 
 const router = express.Router();
 
-const voteService = require('../services/voteService.js');
+const voteContextService = require('../contexts/vote/vote-context.service.js');
 
 /**
  * POST /api/v1/votes/sos
@@ -86,7 +86,7 @@ router.post('/cast', voteLimiter, async (req, res) => {
         }
 
         // Use VoteService for the full business logic (ZKP, Encryption, Fabric, SQL, Kafka)
-        const result = await voteService.castVote({
+        const result = await voteContextService.castVote({
             voterId,
             electionId,
             candidateId,
@@ -230,7 +230,7 @@ router.get('/verify/:receiptId', verifyLimiter, async (req, res) => {
     try {
         const { receiptId } = req.params;
 
-        const result = await voteService.verifyReceipt(receiptId);
+        const result = await voteContextService.verifyReceipt(receiptId);
 
         if (!result.verified) {
             return res.status(404).json({

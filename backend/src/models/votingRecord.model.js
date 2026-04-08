@@ -1,5 +1,6 @@
 const { DataTypes  } = require('sequelize');
 const { sequelize  } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const VotingRecord = sequelize.define('voting_records', {
     record_id: {
@@ -54,7 +55,7 @@ const VotingRecord = sequelize.define('voting_records', {
         allowNull: true,
         comment: 'Client nonce for replay protection',
     },
-}, {
+}, withSchemaOption('voting_records', {
     indexes: [
         { unique: true, fields: ['voter_id', 'election_id'] },
         { fields: ['voter_id', 'election_id'] },
@@ -65,7 +66,6 @@ const VotingRecord = sequelize.define('voting_records', {
         { fields: ['request_nonce'] },
     ],
     timestamps: true,
-    tableName: 'voting_records',
-});
+}));
 
 module.exports = VotingRecord;

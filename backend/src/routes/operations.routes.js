@@ -10,8 +10,12 @@ const {
     outboxPendingGauge,
     deadLetterPendingGauge,
 } = require('../services/observability.service.js');
+const { getQualifiedTableName } = require('../contexts/context.config.js');
 
 const router = express.Router();
+const DIALECT = sequelize.getDialect();
+const VOTING_RECORDS_TABLE = getQualifiedTableName('voting_records', DIALECT);
+const VOTERS_TABLE = getQualifiedTableName('voters', DIALECT);
 
 router.get('/dashboard', authenticate, authorize('admin', 'observer'), async (req, res) => {
     try {
@@ -42,8 +46,8 @@ router.get('/dashboard', authenticate, authorize('admin', 'observer'), async (re
         const [districtTurnout] = await sequelize.query(`
             SELECT COALESCE(v.district_id::text, 'unknown') AS district_id,
                    COUNT(*)::int AS votes
-            FROM voting_records vr
-            JOIN voters v ON v.voter_id = vr.voter_id
+            FROM ${VOTING_RECORDS_TABLE} vr
+            JOIN ${VOTERS_TABLE} v ON v.voter_id = vr.voter_id
             GROUP BY v.district_id
             ORDER BY votes DESC
         `);
@@ -52,15 +56,15 @@ router.get('/dashboard', authenticate, authorize('admin', 'observer'), async (re
             WITH district_registered AS (
                 SELECT COALESCE(district_id::text, 'unknown') AS district_id,
                        COUNT(*)::int AS eligible_voters
-                FROM voters
+                FROM ${VOTERS_TABLE}
                 GROUP BY district_id
             )
             SELECT COALESCE(v.district_id::text, 'unknown') AS district_id,
                    COUNT(*)::float / GREATEST(EXTRACT(EPOCH FROM (NOW() - MIN(vr.vote_timestamp))) / 3600.0, 1.0) AS votes_per_hour,
                    COUNT(*)::int AS total_votes,
                    COALESCE(dr.eligible_voters, 1)::int AS eligible_voters
-            FROM voting_records vr
-            JOIN voters v ON v.voter_id = vr.voter_id
+            FROM ${VOTING_RECORDS_TABLE} vr
+            JOIN ${VOTERS_TABLE} v ON v.voter_id = vr.voter_id
             LEFT JOIN district_registered dr ON dr.district_id = COALESCE(v.district_id::text, 'unknown')
             WHERE vr.vote_timestamp >= NOW() - INTERVAL '1 hour'
             GROUP BY v.district_id, dr.eligible_voters
@@ -73,7 +77,7 @@ router.get('/dashboard', authenticate, authorize('admin', 'observer'), async (re
         const [terminalTurnout] = await sequelize.query(`
             SELECT COALESCE(vr.terminal_id::text, 'unknown') AS terminal_id,
                    COUNT(*)::int AS votes
-            FROM voting_records vr
+            FROM ${VOTING_RECORDS_TABLE} vr
             GROUP BY vr.terminal_id
             ORDER BY votes DESC
         `);

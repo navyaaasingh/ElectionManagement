@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const OutboxEvent = sequelize.define('outbox_events', {
     event_id: {
@@ -46,14 +47,13 @@ const OutboxEvent = sequelize.define('outbox_events', {
         type: DataTypes.DATE,
         allowNull: true,
     },
-}, {
-    tableName: 'outbox_events',
+}, withSchemaOption('outbox_events', {
     timestamps: true,
     indexes: [
         { fields: ['status', 'next_attempt_at'] },
         { fields: ['aggregate_type', 'aggregate_id'] },
         { fields: ['event_type', 'status'] },
     ],
-});
+}));
 
 module.exports = OutboxEvent;

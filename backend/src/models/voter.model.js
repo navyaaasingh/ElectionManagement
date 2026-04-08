@@ -1,5 +1,6 @@
 const { DataTypes  } = require('sequelize');
 const { sequelize  } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const Voter = sequelize.define('voters', {
     voter_id: {
@@ -89,9 +90,8 @@ const Voter = sequelize.define('voters', {
             key: 'admin_id',
         },
     },
-}, {
+}, withSchemaOption('voters', {
     timestamps: true,
-    tableName: 'voters',
-});
+}));
 
 module.exports = Voter;

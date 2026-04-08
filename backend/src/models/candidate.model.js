@@ -1,5 +1,6 @@
 const { DataTypes  } = require('sequelize');
 const { sequelize  } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const Candidate = sequelize.define('candidates', {
     candidate_id: {
@@ -61,14 +62,13 @@ const Candidate = sequelize.define('candidates', {
         type: DataTypes.ENUM('active', 'withdrawn', 'disqualified'),
         defaultValue: 'active',
     },
-}, {
+}, withSchemaOption('candidates', {
     indexes: [
         { fields: ['election_id'] },
         { fields: ['district_id'] },
         { fields: ['status'] },
     ],
     timestamps: true,
-    tableName: 'candidates',
-});
+}));
 
 module.exports = Candidate;

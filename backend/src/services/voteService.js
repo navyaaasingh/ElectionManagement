@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { sequelize, redisClient } = require('../db/index.js');
 const reconciliationSaga = require('./reconciliationSaga.service.js');
 const { voteCastLatencyMs, fabricFallbackTotal } = require('./observability.service.js');
+const { getQualifiedTableName } = require('../contexts/context.config.js');
 
 const isTruthy = (value, defaultValue = false) => {
     if (value === undefined || value === null) return defaultValue;
@@ -130,10 +131,11 @@ class VoteService {
                     lock: tx.LOCK.UPDATE,
                 });
                 if (sequelize.getDialect() !== 'sqlite') {
+                    const votingRecordsTable = getQualifiedTableName('voting_records', sequelize.getDialect());
                     await sequelize.query(
                         `
                         SELECT voter_id
-                        FROM voting_records
+                        FROM ${votingRecordsTable}
                         WHERE voter_id = :voterId AND election_id = :electionId
                         FOR UPDATE
                         `,

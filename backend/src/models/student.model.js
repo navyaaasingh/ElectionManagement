@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const Student = sequelize.define('students', {
     student_id: {
@@ -36,9 +37,8 @@ const Student = sequelize.define('students', {
             key: 'admin_id',
         },
     },
-}, {
+}, withSchemaOption('students', {
     timestamps: true,
-    tableName: 'students',
-});
+}));
 
 module.exports = Student;

@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../db/index.js');
+const { withSchemaOption } = require('./schemaOption.js');
 
 const PollApproval = sequelize.define('poll_approvals', {
     approval_id: {
@@ -46,13 +47,12 @@ const PollApproval = sequelize.define('poll_approvals', {
         type: DataTypes.TEXT,
         allowNull: true,
     },
-}, {
-    tableName: 'poll_approvals',
+}, withSchemaOption('poll_approvals', {
     timestamps: true,
     indexes: [
         { fields: ['election_id'] },
         { fields: ['status'] },
     ],
-});
+}));
 
 module.exports = PollApproval;
