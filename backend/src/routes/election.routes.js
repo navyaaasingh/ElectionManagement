@@ -5,6 +5,7 @@ const resultsService = require('../services/resultsService.js');
 const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const { csrfProtection } = require('../middleware/csrf.middleware.js');
 const { sequelize } = require('../db/index.js');
+const logger = require('../utils/logger.js');
 
 const router = express.Router();
 
@@ -64,13 +65,17 @@ const applyElectionStatusUpdate = async (election, requested) => {
     if (requested === 'ACTIVE') {
         try {
             await iotService.broadcastActivation(election.election_id);
-        } catch {}
+        } catch (error) {
+            logger.warn('Failed to broadcast election activation', { electionId: election.election_id, error: error.message });
+        }
     }
 
     if (requested === 'COMPLETED') {
         try {
             await resultsService.triggerTally(election.election_id);
-        } catch {}
+        } catch (error) {
+            logger.warn('Failed to trigger tally on completion', { electionId: election.election_id, error: error.message });
+        }
     }
 };
 

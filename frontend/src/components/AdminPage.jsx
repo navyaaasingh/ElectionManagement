@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { adminLogin, getStoredAdmin, logout } from '../api/auth.js'
-import { getAuditLogs, getVoters, getRegistrations, approveVoter } from '../api/admin.js'
-import { createElection, getCandidates, getElections, updateElectionStatus } from '../api/elections.js'
+import { getAuditLogs, getVoters, getRegistrations, approveVoter, bulkValidateVoters, bulkImportVoters } from '../api/admin.js'
+import { createElection, getCandidates, getElections, updateElectionStatus, proposeElectionStatus, getElectionStatusProposals, approveElectionStatusProposal } from '../api/elections.js'
 import { getMlHealth } from '../api/ml.js'
 import { exportAuditLogs, runWhatIfSimulation } from '../api/operations.js'
 import { summarizeElections } from '../lib/electionSnapshot.js'
@@ -69,6 +69,8 @@ export default function AdminPage() {
   const [auditFilter, setAuditFilter] = useState({ eventType: '', startDate: '', endDate: '' })
   const [simulationInput, setSimulationInput] = useState({ registeredVoters: 1000, expectedTurnoutPct: 60, terminals: 10, avgVoteSeconds: 45, anomalyRatePct: 1.5 })
   const [simulationResult, setSimulationResult] = useState(null)
+  const [bulkInput, setBulkInput] = useState('')
+  const [bulkResult, setBulkResult] = useState(null)
 
   useEffect(() => {
     if (!admin) return
@@ -174,6 +176,38 @@ export default function AdminPage() {
     }
   }, [simulationInput])
 
+  const parseBulkInput = useCallback(() => {
+    try {
+      const parsed = JSON.parse(bulkInput || '[]')
+      if (!Array.isArray(parsed)) throw new Error('JSON must be an array')
+      return parsed
+    } catch (err) {
+      throw new Error(`Invalid JSON: ${err.message}`)
+    }
+  }, [bulkInput])
+
+  const handleBulkValidate = useCallback(async () => {
+    try {
+      const voters = parseBulkInput()
+      const result = await bulkValidateVoters(voters)
+      setBulkResult(result)
+    } catch (err) {
+      alert(err.message)
+    }
+  }, [parseBulkInput])
+
+  const handleBulkImport = useCallback(async () => {
+    try {
+      const voters = parseBulkInput()
+      const result = await bulkImportVoters(voters)
+      setBulkResult(result)
+      const fresh = await getRegistrations({ limit: 50 })
+      setRegistrations(fresh)
+    } catch (err) {
+      alert(err.message)
+    }
+  }, [parseBulkInput])
+
   const filteredRegistrations = useMemo(() => {
     const regs = registrations?.registrations || []
     return regs.filter(r => {
@@ -220,7 +254,33 @@ export default function AdminPage() {
       const response = await getElections({ limit: 12 })
       setElections(response.elections || [])
     } catch (err) {
-      alert(`Failed to update status: ${err.message}`)
+      if (err.status === 403 && /proposal/i.test(err.message)) {
+        try {
+          await proposeElectionStatus(electionId, status, `Auto-proposed by ${admin?.username || 'admin'}`)
+          alert('Status proposal created. Awaiting multi-party approval.')
+        } catch (proposalErr) {
+          alert(`Failed to create status proposal: ${proposalErr.message}`)
+        }
+      } else {
+        alert(`Failed to update status: ${err.message}`)
+      }
+    }
+  }
+
+  async function handleApprovePendingStatus(electionId) {
+    try {
+      const data = await getElectionStatusProposals(electionId)
+      const pending = (data.proposals || []).find((p) => p.status === 'PENDING')
+      if (!pending) {
+        alert('No pending status proposal found for this election.')
+        return
+      }
+      await approveElectionStatusProposal(electionId, pending.approval_id)
+      const response = await getElections({ limit: 12 })
+      setElections(response.elections || [])
+      alert('Approval recorded.')
+    } catch (err) {
+      alert(`Approval failed: ${err.message}`)
     }
   }
 
@@ -402,6 +462,31 @@ export default function AdminPage() {
                 </StaggerItem>
               ))}
             </StaggerContainer>
+
+            <div className="surface-card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <p className="section-kicker">Bulk operations</p>
+                  <h2 style={{ margin: 0 }}>Bulk Voter Import / Validate</h2>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <AnimatedButton className="button button--ghost button--inline" onClick={handleBulkValidate}>Validate</AnimatedButton>
+                  <AnimatedButton className="button button--primary button--inline" onClick={handleBulkImport}>Import</AnimatedButton>
+                </div>
+              </div>
+              <textarea
+                className="field-input"
+                style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', fontSize: '0.85rem' }}
+                placeholder='[{"rollNumber":"CS24-001","email":"a@uni.edu","fullName":"A Student","aadharNumber":"000000000000","districtId":"<uuid>"}]'
+                value={bulkInput}
+                onChange={(e) => setBulkInput(e.target.value)}
+              />
+              {bulkResult && (
+                <p style={{ marginTop: '10px', fontSize: '0.9rem', color: 'var(--ink-soft)' }}>
+                  Processed. Created: <strong>{bulkResult.createdCount ?? bulkResult.summary?.valid ?? 0}</strong> | Rejected: <strong>{bulkResult.rejectedCount ?? bulkResult.summary?.errors ?? 0}</strong>
+                </p>
+              )}
+            </div>
 
             {/* Registered Voters Table */}
             <div className="surface-card" style={{ padding: '32px', marginBottom: '32px' }}>
@@ -649,6 +734,9 @@ export default function AdminPage() {
                       {election.status === 'certified' ? (
                         <span className="detail-inline" style={{ color: 'var(--success)', fontWeight: 600 }}>✅ Certified</span>
                       ) : null}
+                      <AnimatedButton className="button button--ghost button--inline" onClick={() => handleApprovePendingStatus(election.election_id)}>
+                        Approve Pending
+                      </AnimatedButton>
                     </td>
                   </motion.tr>
                 ))}

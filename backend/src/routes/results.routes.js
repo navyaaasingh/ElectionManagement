@@ -1,9 +1,10 @@
 const express = require('express');
 const { Election, Candidate  } = require('../models/index.js');
 const fabricService = require('../services/fabricService.js');
-const { authenticate  } = require('../middleware/auth.middleware.js');
+const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const { resultsLimiter } = require('../middleware/rateLimit.middleware.js');
 const { redisClient } = require('../db/index.js');
+const logger = require('../utils/logger.js');
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ const router = express.Router();
  * GET /api/v1/results/:electionId/preview
  * Preview results before certification (admin/observer only)
  */
-router.get('/:electionId/preview', authenticate, resultsLimiter, async (req, res) => {
+router.get('/:electionId/preview', authenticate, authorize('admin', 'observer'), resultsLimiter, async (req, res) => {
     try {
         const { electionId } = req.params;
         const election = await Election.findByPk(electionId, {
@@ -24,7 +25,9 @@ router.get('/:electionId/preview', authenticate, resultsLimiter, async (req, res
         let results = [];
         try {
             results = await fabricService.getResults(electionId);
-        } catch {}
+        } catch (error) {
+            logger.warn('Preview results fallback to DB-only due to Fabric error', { electionId, error: error.message });
+        }
 
         const candidatesWithVotes = election.candidates.map((candidate) => {
             const result = results.find((r) => r.candidateId === candidate.candidate_id);

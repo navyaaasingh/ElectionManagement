@@ -44,6 +44,18 @@ export function updateElectionStatus(id, status) {
   return api.put(`/api/v1/elections/${id}/status`, { status });
 }
 
+export function proposeElectionStatus(id, status, notes = '') {
+  return api.post(`/api/v1/elections/${id}/status/propose`, { status, notes });
+}
+
+export function approveElectionStatusProposal(electionId, proposalId) {
+  return api.post(`/api/v1/elections/${electionId}/status/proposals/${proposalId}/approve`, {});
+}
+
+export function getElectionStatusProposals(electionId) {
+  return api.get(`/api/v1/elections/${electionId}/status/proposals`);
+}
+
 /**
  * Delete an election (admin only, upcoming only).
  */

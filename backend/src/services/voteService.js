@@ -10,6 +10,8 @@ const logger = require('../utils/logger.js');
 const AuditLog = require('../models/auditLog.model.js');
 const crypto = require('crypto');
 const { sequelize, redisClient } = require('../db/index.js');
+const reconciliationSaga = require('./reconciliationSaga.service.js');
+const { voteCastLatencyMs, fabricFallbackTotal } = require('./observability.service.js');
 
 const isTruthy = (value, defaultValue = false) => {
     if (value === undefined || value === null) return defaultValue;
@@ -23,6 +25,7 @@ class VoteService {
      * @returns {Promise<Object>} Vote receipt
      */
     async castVote(voteData) {
+        const startedAt = Date.now();
         const {
             voterId,
             electionId,
@@ -104,6 +107,7 @@ class VoteService {
             let verificationHash = null;
             let blockchainTxId = null;
             let saltedBiometricHash = null;
+            let blockchainDeferred = false;
 
             // 4. Transactional section to avoid check-insert race windows.
             await sequelize.transaction(async (tx) => {
@@ -125,6 +129,20 @@ class VoteService {
                     transaction: tx,
                     lock: tx.LOCK.UPDATE,
                 });
+                if (sequelize.getDialect() !== 'sqlite') {
+                    await sequelize.query(
+                        `
+                        SELECT voter_id
+                        FROM voting_records
+                        WHERE voter_id = :voterId AND election_id = :electionId
+                        FOR UPDATE
+                        `,
+                        {
+                            replacements: { voterId, electionId },
+                            transaction: tx,
+                        }
+                    );
+                }
                 if (existingVote || voter.has_voted) {
                     throw new Error('Voter has already voted in this election');
                 }
@@ -185,9 +203,11 @@ class VoteService {
                 } catch (fabricErr) {
                     logger.warn('Blockchain unavailable, falling back to DB-only vote:', { error: fabricErr.message });
                     blockchainTxId = verificationHash;
+                    blockchainDeferred = true;
+                    fabricFallbackTotal.inc();
                 }
 
-                await VotingRecord.create({
+                const votingRecord = await VotingRecord.create({
                     voter_id: voterId,
                     election_id: electionId,
                     terminal_id: terminalId,
@@ -199,6 +219,21 @@ class VoteService {
                 }, { transaction: tx });
 
                 await voter.update({ has_voted: true }, { transaction: tx });
+
+                if (blockchainDeferred) {
+                    await reconciliationSaga.enqueueVoteSync({
+                        voteId,
+                        recordId: votingRecord.record_id,
+                        voterId,
+                        electionId,
+                        candidateId: encryptedVote || candidateId,
+                        districtId,
+                        terminalId,
+                        verificationHash,
+                        zkpCommitment,
+                        timestamp: requestTs,
+                    }, tx);
+                }
             });
 
             // 5. Post-commit blockchain consistency check (best-effort)
@@ -230,7 +265,9 @@ class VoteService {
                     timestamp: requestTs, voteId,
                     nonce: effectiveNonce
                 });
-            } catch { /* Kafka optional */ }
+            } catch (error) {
+                logger.warn('Kafka telemetry publish skipped', { error: error.message });
+            }
 
             try {
                 const { publishPartitionedIoTBroadcast } = require('./kafkaProducer.js');
@@ -244,12 +281,16 @@ class VoteService {
                         timestamp: requestTs,
                     },
                 });
-            } catch { /* Kafka optional */ }
+            } catch (error) {
+                logger.warn('Kafka IoT broadcast skipped', { error: error.message });
+            }
 
             try {
                 const { broadcastMessage } = require('./websocket.service.js');
                 broadcastMessage('VOTE_CAST', { electionId, candidateId, district: districtId, timestamp: requestTs });
-            } catch { /* WebSocket optional */ }
+            } catch (error) {
+                logger.warn('WebSocket broadcast skipped', { error: error.message });
+            }
 
             // Invalidate cached results for this election
             try {
@@ -275,6 +316,8 @@ class VoteService {
                 });
             } catch { /* audit non-fatal */ }
 
+            voteCastLatencyMs.observe(Date.now() - startedAt);
+
             return {
                 success: true,
                 voteId,
@@ -287,6 +330,7 @@ class VoteService {
                 error.message = 'Voter has already voted in this election';
             }
             logger.error('Error casting vote:', { error: error.message });
+            voteCastLatencyMs.observe(Date.now() - startedAt);
 
             // Log failed attempt
             try {
@@ -296,7 +340,26 @@ class VoteService {
                     severity: 'HIGH',
                     metadata: { election_id: electionId, terminal_id: terminalId, error: error.message }
                 });
-            } catch { /* audit non-fatal */ }
+            } catch (auditErr) {
+                logger.warn('Failed to write vote cast failure audit log', { error: auditErr.message });
+            }
+
+            if (error.message && /insert|constraint|sequelize|sql/i.test(error.message)) {
+                await reconciliationSaga.enqueueDeadLetter({
+                    sourceEventId: null,
+                    eventType: 'SQL_RECORD_FAILED',
+                    payload: {
+                        voterId,
+                        electionId,
+                        candidateId,
+                        districtId,
+                        terminalId,
+                        nonce,
+                        timestamp,
+                    },
+                    errorMessage: error.message,
+                });
+            }
 
             throw error;
         }

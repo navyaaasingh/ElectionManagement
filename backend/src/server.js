@@ -9,6 +9,7 @@ const { URL } = require('url');
 const { initializeDatabases, closeDatabases } = require('./db/index.js');
 const { initWebSocketServer } = require('./services/websocket.service.js');
 const { initKafkaProducer, disconnectKafkaProducer } = require('./services/kafkaProducer.js');
+const reconciliationSaga = require('./services/reconciliationSaga.service.js');
 
 // Load environment variables
 dotenv.config();
@@ -91,6 +92,14 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         service: 'election-management-api',
         version: '1.0.0',
+    });
+});
+
+app.get('/ready', (req, res) => {
+    res.json({
+        status: 'ready',
+        timestamp: new Date().toISOString(),
+        service: 'election-management-api',
     });
 });
 
@@ -188,6 +197,7 @@ const startServer = async () => {
         } catch (error) {
             console.warn('⚠️  Kafka Producer initialization failed. Event streaming disabled.');
         }
+        reconciliationSaga.start();
 
         // Start HTTP server
         const server = app.listen(PORT, '0.0.0.0', () => {
@@ -212,6 +222,7 @@ const startServer = async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('\n🛑 SIGTERM received, shutting down gracefully...');
+    reconciliationSaga.stop();
     await disconnectKafkaProducer();
     await closeDatabases();
     process.exit(0);
@@ -219,6 +230,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
     console.log('\n🛑 SIGINT received, shutting down gracefully...');
+    reconciliationSaga.stop();
     await disconnectKafkaProducer();
     await closeDatabases();
     process.exit(0);

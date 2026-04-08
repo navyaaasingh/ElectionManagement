@@ -304,6 +304,135 @@ const ensureSchemaCompatibility = async () => {
         });
         console.log('✅ Created missing table poll_approvals');
     }
+
+    try {
+        await qi.describeTable('outbox_events');
+    } catch {
+        await qi.createTable('outbox_events', {
+            event_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            aggregate_type: {
+                type: Sequelize.STRING(64),
+                allowNull: false,
+            },
+            aggregate_id: {
+                type: Sequelize.STRING(128),
+                allowNull: false,
+            },
+            event_type: {
+                type: Sequelize.STRING(64),
+                allowNull: false,
+            },
+            payload: {
+                type: Sequelize.JSON,
+                allowNull: false,
+            },
+            status: {
+                type: Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'PENDING',
+            },
+            retry_count: {
+                type: Sequelize.INTEGER,
+                allowNull: false,
+                defaultValue: 0,
+            },
+            last_error: {
+                type: Sequelize.TEXT,
+                allowNull: true,
+            },
+            next_attempt_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            processed_at: {
+                type: Sequelize.DATE,
+                allowNull: true,
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table outbox_events');
+    }
+
+    try {
+        await qi.describeTable('dead_letter_events');
+    } catch {
+        await qi.createTable('dead_letter_events', {
+            dead_letter_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            source_event_id: {
+                type: Sequelize.UUID,
+                allowNull: true,
+            },
+            source_table: {
+                type: Sequelize.STRING(64),
+                allowNull: false,
+                defaultValue: 'outbox_events',
+            },
+            event_type: {
+                type: Sequelize.STRING(64),
+                allowNull: false,
+            },
+            payload: {
+                type: Sequelize.JSON,
+                allowNull: false,
+            },
+            error_message: {
+                type: Sequelize.TEXT,
+                allowNull: false,
+            },
+            failure_count: {
+                type: Sequelize.INTEGER,
+                allowNull: false,
+                defaultValue: 1,
+            },
+            resolved: {
+                type: Sequelize.BOOLEAN,
+                allowNull: false,
+                defaultValue: false,
+            },
+            resolved_at: {
+                type: Sequelize.DATE,
+                allowNull: true,
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table dead_letter_events');
+    }
+
+    await addIndexIfMissing('outbox_events', ['status', 'next_attempt_at'], {
+        name: 'outbox_events_status_next_attempt_idx',
+    });
+    await addIndexIfMissing('dead_letter_events', ['resolved', 'created_at'], {
+        name: 'dead_letter_events_resolved_created_idx',
+    });
 };
 
 const ensureBootstrapAdmin = async () => {

@@ -2,6 +2,13 @@ const { Gateway, Wallets } = require('fabric-network');
 const fsPromises = require('fs/promises');
 const fs = require('fs');
 const path = require('path');
+const CircuitBreaker = require('opossum');
+const { redisClient } = require('../db/index.js');
+const logger = require('../utils/logger.js');
+const {
+    fabricCallLatencyMs,
+    fabricCircuitOpen,
+} = require('./observability.service.js');
 
 
 class FabricService {
@@ -12,6 +19,105 @@ class FabricService {
         this.contract = null;
         this.channelName = process.env.FABRIC_CHANNEL_NAME || 'election-channel';
         this.chaincodeName = process.env.FABRIC_CHAINCODE_NAME || 'voting';
+        this.degradedUntil = 0;
+        this.failureCount = 0;
+        this.breakers = new Map();
+    }
+
+    isCircuitOpen() {
+        return Date.now() < this.degradedUntil;
+    }
+
+    markFailure() {
+        this.failureCount += 1;
+        const threshold = Number(process.env.FABRIC_CIRCUIT_FAILURE_THRESHOLD || 3);
+        if (this.failureCount >= threshold) {
+            const coolDownMs = Number(process.env.FABRIC_CIRCUIT_COOLDOWN_MS || 30_000);
+            this.degradedUntil = Date.now() + coolDownMs;
+            this.failureCount = 0;
+            fabricCircuitOpen.set(1);
+        }
+    }
+
+    markSuccess() {
+        this.failureCount = 0;
+        this.degradedUntil = 0;
+        fabricCircuitOpen.set(0);
+    }
+
+    parseResult(result) {
+        if (result === null || result === undefined) return result;
+        const parseJson = (value) => {
+            try {
+                return JSON.parse(value);
+            } catch {
+                return value;
+            }
+        };
+        if (Buffer.isBuffer(result)) {
+            return parseJson(result.toString());
+        }
+        if (typeof result === 'string') {
+            return parseJson(result);
+        }
+        if (typeof result === 'object') {
+            return result;
+        }
+        return result;
+    }
+
+    getBreaker(actionName) {
+        if (this.breakers.has(actionName)) {
+            return this.breakers.get(actionName);
+        }
+        const timeout = Number(process.env.FABRIC_BREAKER_TIMEOUT_MS || 2500);
+        const breaker = new CircuitBreaker(async (fn) => fn(), {
+            timeout,
+            errorThresholdPercentage: Number(process.env.FABRIC_BREAKER_ERROR_PCT || 50),
+            resetTimeout: Number(process.env.FABRIC_BREAKER_RESET_MS || 15000),
+            rollingCountTimeout: Number(process.env.FABRIC_BREAKER_WINDOW_MS || 10000),
+            rollingCountBuckets: 10,
+        });
+        breaker.on('open', () => {
+            fabricCircuitOpen.set(1);
+            logger.warn('Fabric breaker opened', { actionName });
+        });
+        breaker.on('close', () => {
+            fabricCircuitOpen.set(0);
+            logger.info('Fabric breaker closed', { actionName });
+        });
+        this.breakers.set(actionName, breaker);
+        return breaker;
+    }
+
+    async withCircuit(actionName, fn, options = {}) {
+        const start = Date.now();
+        const breaker = this.getBreaker(actionName);
+        const staleKey = options.staleKey || null;
+        try {
+            const result = await breaker.fire(fn);
+            const normalized = options.normalize ? this.parseResult(result) : result;
+            this.markSuccess();
+            fabricCallLatencyMs.labels(actionName, 'success').observe(Date.now() - start);
+            if (staleKey && redisClient.isOpen) {
+                await redisClient.set(staleKey, JSON.stringify(normalized), { EX: Number(process.env.FABRIC_STALE_TTL_SEC || 90) });
+            }
+            return normalized;
+        } catch (error) {
+            this.markFailure();
+            fabricCallLatencyMs.labels(actionName, 'failure').observe(Date.now() - start);
+            if (staleKey && redisClient.isOpen) {
+                try {
+                    const cached = await redisClient.get(staleKey);
+                    if (cached) {
+                        return JSON.parse(cached);
+                    }
+                } catch (cacheErr) {
+                    logger.warn('Fabric stale cache read failed', { actionName, error: cacheErr.message });
+                }
+            }
+            throw error;
+        }
     }
 
     ensureAssets(ccpPath, walletPath) {
@@ -28,6 +134,9 @@ class FabricService {
      */
     async connect(userId = 'admin') {
         try {
+            if (this.isCircuitOpen()) {
+                throw new Error('Fabric circuit is open. Using fallback mode.');
+            }
             // Load connection profile
             const ccpPath = path.resolve(__dirname, '../../..', 'blockchain', 'network', 'connection-profile.json');
             const walletPath = path.resolve(__dirname, '../../..', 'blockchain', 'wallet');
@@ -56,9 +165,11 @@ class FabricService {
             this.contract = this.network.getContract(this.chaincodeName);
 
             console.log('✅ Connected to Fabric network');
+            this.markSuccess();
             return true;
         } catch (error) {
             console.error('❌ Failed to connect to Fabric:', error.message);
+            this.markFailure();
             throw error;
         }
     }
@@ -68,20 +179,22 @@ class FabricService {
      */
     async registerVoter(voterId, district, electionId) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
+            const result = await this.withCircuit('register_voter', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.submitTransaction(
+                    'RegisterVoter',
+                    voterId,
+                    district,
+                    electionId
+                );
+            });
 
-            const result = await this.contract.submitTransaction(
-                'RegisterVoter',
-                voterId,
-                district,
-                electionId
-            );
-
-            return JSON.parse(result.toString());
+            return this.parseResult(result);
         } catch (error) {
             console.error('Fabric - Register Voter Error:', error.message);
+            this.markFailure();
             throw new Error(`Failed to register voter: ${error.message}`);
         }
     }
@@ -91,23 +204,25 @@ class FabricService {
      */
     async castVote(voterId, electionId, candidateId, district, verificationHash, terminalId) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
-
-            const result = await this.contract.submitTransaction(
-                'CastVote',
-                voterId,
-                electionId,
-                candidateId,
-                district,
-                verificationHash,
-                terminalId
-            );
+            const result = await this.withCircuit('cast_vote', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.submitTransaction(
+                    'CastVote',
+                    voterId,
+                    electionId,
+                    candidateId,
+                    district,
+                    verificationHash,
+                    terminalId
+                );
+            });
 
             return result.toString(); // Returns vote ID
         } catch (error) {
             console.error('Fabric - Cast Vote Error:', error.message);
+            this.markFailure();
 
             // Check for double-voting attempt
             if (error.message.includes('DOUBLE_VOTE_ATTEMPT')) {
@@ -123,19 +238,22 @@ class FabricService {
      */
     async checkVoterStatus(voterId, electionId) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
+            const staleKey = `fabric:status:${voterId}:${electionId}`;
+            const result = await this.withCircuit('check_voter_status', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.evaluateTransaction(
+                    'CheckVoterStatus',
+                    voterId,
+                    electionId
+                );
+            }, { staleKey, normalize: true });
 
-            const result = await this.contract.evaluateTransaction(
-                'CheckVoterStatus',
-                voterId,
-                electionId
-            );
-
-            return JSON.parse(result.toString());
+            return result;
         } catch (error) {
             console.error('Fabric - Check Voter Status Error:', error.message);
+            this.markFailure();
             throw new Error(`Failed to check voter status: ${error.message}`);
         }
     }
@@ -145,18 +263,21 @@ class FabricService {
      */
     async getResults(electionId) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
+            const staleKey = `fabric:results:${electionId}`;
+            const result = await this.withCircuit('get_results', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.evaluateTransaction(
+                    'GetResults',
+                    electionId
+                );
+            }, { staleKey, normalize: true });
 
-            const result = await this.contract.evaluateTransaction(
-                'GetResults',
-                electionId
-            );
-
-            return JSON.parse(result.toString());
+            return result;
         } catch (error) {
             console.error('Fabric - Get Results Error:', error.message);
+            this.markFailure();
             throw new Error(`Failed to get results: ${error.message}`);
         }
     }
@@ -166,18 +287,21 @@ class FabricService {
      */
     async getVoteById(voteId) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
+            const staleKey = `fabric:vote:${voteId}`;
+            const result = await this.withCircuit('get_vote_by_id', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.evaluateTransaction(
+                    'GetVoteByID',
+                    voteId
+                );
+            }, { staleKey, normalize: true });
 
-            const result = await this.contract.evaluateTransaction(
-                'GetVoteByID',
-                voteId
-            );
-
-            return JSON.parse(result.toString());
+            return result;
         } catch (error) {
             console.error('Fabric - Get Vote Error:', error.message);
+            this.markFailure();
             throw new Error(`Failed to get vote: ${error.message}`);
         }
     }
@@ -209,9 +333,12 @@ class FabricService {
 
     async getVotesByElection(electionId) {
         try {
-            if (!this.contract) await this.connect();
-            const payload = await this.contract.evaluateTransaction('GetVotesByElection', electionId);
-            return JSON.parse(payload.toString());
+            const staleKey = `fabric:votes_by_election:${electionId}`;
+            const payload = await this.withCircuit('get_votes_by_election', async () => {
+                if (!this.contract) await this.connect();
+                return this.contract.evaluateTransaction('GetVotesByElection', electionId);
+            }, { staleKey, normalize: true });
+            return payload;
         } catch (error) {
             console.warn('Fabric - getVotesByElection not available:', error.message);
             return [];
@@ -223,9 +350,12 @@ class FabricService {
      */
     async getMerkleProof(voteOrTxId) {
         try {
-            if (!this.contract) await this.connect();
-            const payload = await this.contract.evaluateTransaction('GetMerkleProof', voteOrTxId);
-            return JSON.parse(payload.toString());
+            const staleKey = `fabric:merkle:${voteOrTxId}`;
+            const payload = await this.withCircuit('get_merkle_proof', async () => {
+                if (!this.contract) await this.connect();
+                return this.contract.evaluateTransaction('GetMerkleProof', voteOrTxId);
+            }, { staleKey, normalize: true });
+            return payload;
         } catch (error) {
             console.warn('Fabric - GetMerkleProof not available:', error.message);
             return null;
@@ -237,18 +367,19 @@ class FabricService {
      */
     async createElection(electionId, name, startDate, endDate, createdBy) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
-
-            await this.contract.submitTransaction(
-                'CreateElection',
-                electionId,
-                name,
-                startDate,
-                endDate,
-                createdBy
-            );
+            await this.withCircuit('create_election', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.submitTransaction(
+                    'CreateElection',
+                    electionId,
+                    name,
+                    startDate,
+                    endDate,
+                    createdBy
+                );
+            });
 
             return { success: true, electionId };
         } catch (error) {
@@ -262,18 +393,19 @@ class FabricService {
      */
     async registerCandidate(candidateId, electionId, name, party, district) {
         try {
-            if (!this.contract) {
-                await this.connect();
-            }
-
-            await this.contract.submitTransaction(
-                'RegisterCandidate',
-                candidateId,
-                electionId,
-                name,
-                party,
-                district
-            );
+            await this.withCircuit('register_candidate', async () => {
+                if (!this.contract) {
+                    await this.connect();
+                }
+                return this.contract.submitTransaction(
+                    'RegisterCandidate',
+                    candidateId,
+                    electionId,
+                    name,
+                    party,
+                    district
+                );
+            });
 
             return { success: true, candidateId };
         } catch (error) {
@@ -287,11 +419,14 @@ class FabricService {
      */
     async getResultsByDistrict(electionId, districtId) {
         try {
-            if (!this.contract) await this.connect();
-            const result = await this.contract.evaluateTransaction(
-                'GetResultsByDistrict', electionId, districtId
-            );
-            return JSON.parse(result.toString());
+            const staleKey = `fabric:results_district:${electionId}:${districtId}`;
+            const result = await this.withCircuit('get_results_by_district', async () => {
+                if (!this.contract) await this.connect();
+                return this.contract.evaluateTransaction(
+                    'GetResultsByDistrict', electionId, districtId
+                );
+            }, { staleKey, normalize: true });
+            return result;
         } catch (error) {
             console.warn('Fabric - GetResultsByDistrict not available:', error.message);
             return []; // Graceful fallback

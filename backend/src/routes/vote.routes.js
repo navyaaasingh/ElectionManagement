@@ -39,7 +39,9 @@ router.post('/sos', authenticate, async (req, res) => {
 
         try {
             broadcastMessage('SOS_ALERT', payload);
-        } catch {}
+        } catch (error) {
+            logger.warn('Failed to broadcast SOS alert over WebSocket', { error: error.message });
+        }
 
         logger.warn('SOS_ALERT_RAISED', payload);
         return res.status(201).json({ success: true, message: 'SOS alert sent', alert: payload });

@@ -1,80 +1,104 @@
 {
-  "title": "Election Overview Dashboard",
-  "tags": ["election", "overview"],
+  "title": "Election Safety Fence Dashboard",
+  "tags": ["election", "safety-fence"],
   "timezone": "browser",
   "refresh": "5s",
+  "schemaVersion": 30,
+  "version": 2,
   "panels": [
     {
-      "type": "stat",
-      "title": "Total Votes Cast",
+      "type": "heatmap",
+      "title": "Terminal Heartbeat Heatmap",
       "targets": [
         {
-          "expr": "sum(election_backend_votes_cast_total)",
+          "expr": "terminal_offline_count",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 }
-    },
-    {
-      "type": "stat",
-      "title": "Total Fraud Alerts",
-      "targets": [
-        {
-          "expr": "sum(election_backend_fraud_alerts_total)",
-          "refId": "A"
-        }
-      ],
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 }
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
     },
     {
       "type": "graph",
-      "title": "API Request Rate (TPS)",
+      "title": "Vote Velocity Per District (votes/hour)",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total[1m]))",
+          "expr": "sum by (district_id) (vote_velocity_per_district)",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "xaxis": { "mode": "time" },
       "yaxes": [{ "format": "short" }, { "format": "short" }]
     },
     {
       "type": "graph",
-      "title": "API Error Rate",
+      "title": "Fabric Latency p95 (ms)",
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m]))",
+          "expr": "histogram_quantile(0.95, sum(rate(fabric_call_latency_ms_bucket[5m])) by (le))",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "xaxis": { "mode": "time" },
+      "yaxes": [{ "format": "ms" }, { "format": "short" }]
+    },
+    {
+      "type": "graph",
+      "title": "ML Anomaly Score (proxy via fraud alerts)",
+      "targets": [
+        {
+          "expr": "increase(election_backend_fraud_alerts_total[5m])",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "xaxis": { "mode": "time" },
       "yaxes": [{ "format": "short" }, { "format": "short" }]
     },
     {
-      "type": "gauge",
-      "title": "Node.js Event Loop Lag",
+      "type": "stat",
+      "title": "Outbox Pending",
       "targets": [
         {
-          "expr": "nodejs_eventloop_lag_seconds",
+          "expr": "outbox_pending",
           "refId": "A"
         }
       ],
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
-      "options": {
-        "text": { "valueSize": 24 },
-        "thresholds": {
-          "mode": "absolute",
-          "steps": [
-            { "color": "green", "value": null },
-            { "color": "orange", "value": 0.05 },
-            { "color": "red", "value": 0.1 }
-          ]
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 }
+    },
+    {
+      "type": "stat",
+      "title": "Dead Letters",
+      "targets": [
+        {
+          "expr": "dead_letter_pending",
+          "refId": "A"
         }
-      }
+      ],
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 }
+    },
+    {
+      "type": "stat",
+      "title": "Fabric Circuit Open",
+      "targets": [
+        {
+          "expr": "fabric_circuit_open",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 16 }
+    },
+    {
+      "type": "stat",
+      "title": "Vote Cast Latency p95 (ms)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(vote_cast_latency_ms_bucket[5m])) by (le))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 16 }
     }
-  ],
-  "schemaVersion": 30,
-  "version": 1
+  ]
 }

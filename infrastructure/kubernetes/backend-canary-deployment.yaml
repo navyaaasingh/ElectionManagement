@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-canary
+  namespace: production
+  labels:
+    app: election-backend
+    tier: api
+    release: canary
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 5%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: election-backend
+      release: canary
+  template:
+    metadata:
+      labels:
+        app: election-backend
+        release: canary
+    spec:
+      containers:
+      - name: backend
+        image: yourdockerhub/election-backend:canary
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: CANARY_DISTRICT_TRAFFIC_PERCENT
+          value: "10"
+        - name: ROLLBACK_P95_LATENCY_MS
+          value: "2000"
+        - name: ROLLBACK_ERROR_RATE_PERCENT
+          value: "0.1"

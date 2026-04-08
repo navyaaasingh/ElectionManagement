@@ -73,3 +73,11 @@ export function getRegistrations(params = {}) {
 export function approveVoter(voterId) {
   return api.put(`/api/v1/auth/registrations/${voterId}/approve`, {});
 }
+
+export function bulkValidateVoters(voters) {
+  return api.post('/api/v1/auth/voters/bulk-validate', { voters });
+}
+
+export function bulkImportVoters(voters) {
+  return api.post('/api/v1/auth/voters/bulk-import', { voters });
+}
