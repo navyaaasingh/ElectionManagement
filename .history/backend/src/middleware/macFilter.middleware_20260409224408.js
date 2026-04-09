@@ -58,18 +58,16 @@ class MACFilter {
         this.blacklistedMACs.add(normalized);
 
         // Log to audit
-        if (process.env.NODE_ENV !== 'test') {
-            AuditLog.create({
-                event_type: 'MAC_BLACKLISTED',
-                action: 'MAC_BLACKLIST',
-                user_id: 'system',
-                status: 'success',
-                details: {
-                    mac_address: normalized,
-                    reason,
-                },
-            }).catch(() => null);
-        }
+        AuditLog.create({
+            event_type: 'MAC_BLACKLISTED',
+            action: 'MAC_BLACKLIST',
+            user_id: 'system',
+            status: 'success',
+            details: {
+                mac_address: normalized,
+                reason,
+            },
+        }).catch(() => null);
 
         console.log(`🚫 MAC ${normalized} blacklisted: ${reason}`);
 
@@ -193,19 +191,17 @@ function macFilterMiddleware(req, res, next) {
 
     if (!result.allowed) {
         // Log unauthorized attempt
-        if (process.env.NODE_ENV !== 'test') {
-            AuditLog.create({
-                event_type: 'UNAUTHORIZED_TERMINAL_ACCESS',
-                action: 'TERMINAL_ACCESS_DENIED',
-                user_id: 'anonymous',
-                ip_address: req.ip,
-                status: 'failure',
-                details: {
-                    mac_address: macAddress,
-                    reason: result.reason,
-                },
-            }).catch(() => null);
-        }
+        AuditLog.create({
+            event_type: 'UNAUTHORIZED_TERMINAL_ACCESS',
+            action: 'TERMINAL_ACCESS_DENIED',
+            user_id: 'anonymous',
+            ip_address: req.ip,
+            status: 'failure',
+            details: {
+                mac_address: macAddress,
+                reason: result.reason,
+            },
+        }).catch(() => null);
 
         return res.status(403).json({
             success: false,

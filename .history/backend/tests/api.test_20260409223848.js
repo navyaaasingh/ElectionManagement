@@ -1,4 +1,4 @@
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = 'development';
 process.env.USE_SQLITE = 'true';
 
 const request = require('supertest');
@@ -243,8 +243,9 @@ describe('Vote Casting API', () => {
                     terminalId: TERMINAL_ID,
                 });
 
-            expect([409, 500]).toContain(response.status);
+            expect(response.status).toBe(409);
             expect(response.body.error).toBeDefined();
+            expect(response.body.message).toContain('already voted');
         });
     });
 

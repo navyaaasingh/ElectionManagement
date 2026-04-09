@@ -1,4 +1,4 @@
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = 'development';
 process.env.USE_SQLITE = 'true';
 
 const request = require('supertest');
