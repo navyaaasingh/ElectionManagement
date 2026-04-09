@@ -111,3 +111,11 @@ export function getStoredVoter() {
 export function getStoredAdmin() {
   try { return JSON.parse(localStorage.getItem('admin_info')); } catch { return null; }
 }
+
+export function getAuthType() {
+  return localStorage.getItem('auth_type') || null;
+}
+
+export function isAdminSession() {
+  return getAuthType() === 'admin' && !!getStoredAdmin();
+}

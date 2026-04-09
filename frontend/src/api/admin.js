@@ -36,17 +36,19 @@ export function getDashboardStats() {
  * @param {{ electionId, fullName, partyName, districtId, manifesto, email, phone, studentId, cgpa, year }} data
  */
 export function submitCandidateApplication(data) {
-  return api.post('/api/v1/candidates', {
-    electionId:  data.electionId,
-    fullName:    data.name,
-    partyName:   data.department || 'Independent',
+  return api.post('/api/v1/candidates/applications', {
+    electionId: data.electionId,
+    name: data.name,
+    studentId: data.studentId,
+    email: data.email,
+    phone: data.phone,
+    department: data.department,
+    year: data.year,
+    cgpa: data.cgpa,
+    manifesto: data.manifesto,
+    partyName: data.department || 'Independent',
     partySymbol: data.year || '',
-    districtId:  data.department || 'General',
-    manifesto:   data.manifesto,
-    studentId:   data.studentId,
-    email:       data.email,
-    phone:       data.phone,
-    cgpa:        data.cgpa,
+    districtId: data.districtId || null,
   });
 }
 

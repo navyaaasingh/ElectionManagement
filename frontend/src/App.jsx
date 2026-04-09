@@ -17,7 +17,7 @@ import DemoPage from './components/DemoPage.jsx'
 import NotFound from './components/NotFound.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { Menu, X, Sun, Moon, User, Settings, LogOut, ChevronDown } from 'lucide-react'
-import { getStoredAdmin, getStoredVoter, logout } from './api/auth.js'
+import { getStoredAdmin, getStoredVoter, logout, isAdminSession } from './api/auth.js'
 import './index.css'
 const ROLE_TABS = [
   { id: 'voter', label: 'Voter', path: '/app/voter' },
@@ -67,6 +67,11 @@ function WorkspaceShell() {
   }, [theme])
 
   const activeRole = useMemo(() => deriveActiveRole(location.pathname), [location.pathname])
+  const adminSession = useMemo(() => isAdminSession(), [location.pathname])
+  const visibleTabs = useMemo(() => {
+    if (adminSession) return ROLE_TABS
+    return ROLE_TABS.filter((tab) => !['admin', 'students'].includes(tab.id))
+  }, [adminSession])
   const topActionLabel = useMemo(() => {
     switch(activeRole) {
       case 'voter': return 'Your ballot is ready'
@@ -102,7 +107,7 @@ function WorkspaceShell() {
             </button>
 
             <div className={`app-header__center ${isMobileMenuOpen ? 'is-open' : ''}`}>
-              {ROLE_TABS.map((tab) => (
+              {visibleTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -194,9 +199,9 @@ function WorkspaceShell() {
           <Route path="/voter" element={<VoterUI />} />
           <Route path="/candidate" element={<CandidatePortal />} />
           <Route path="/observer" element={<ObserverDashBoard />} />
-          <Route path="/dashboard" element={<AdminPage />} />
+          <Route path="/dashboard" element={adminSession ? <AdminPage /> : <Navigate to="/login" replace />} />
           <Route path="/verify" element={<VerificationPortal />} />
-          <Route path="/students" element={<StudentManagement />} />
+          <Route path="/students" element={adminSession ? <StudentManagement /> : <Navigate to="/app/dashboard" replace />} />
           <Route path="/create" element={<CreateAccount />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

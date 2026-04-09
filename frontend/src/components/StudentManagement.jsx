@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFormState } from '../context/FormContext.jsx';
 import { Users, UserPlus, RefreshCw, Trash2, Edit2, Search } from 'lucide-react';
 import { 
@@ -8,12 +9,14 @@ import {
   deleteStudent, 
   forceSeedStudents 
 } from '../api/student.js';
+import { isAdminSession } from '../api/auth.js';
 
 // Derive WebSocket URL from API Base
 const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws').split('/api')[0];
 
 export default function StudentManagement() {
+  const navigate = useNavigate();
   const { formData, updateFormData, resetFormData, showModal, setShowModal } = useFormState();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,10 @@ export default function StudentManagement() {
   const ws = useRef(null);
 
   const fetchStudents = async () => {
+    if (!isAdminSession()) {
+      setError('Access denied. Please log in as administrator.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await getStudents();
@@ -53,6 +60,10 @@ export default function StudentManagement() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!isAdminSession()) {
+      setError('Access denied. Please log in as administrator.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -73,6 +84,10 @@ export default function StudentManagement() {
   };
 
   const handleDelete = async (id) => {
+    if (!isAdminSession()) {
+      setError('Access denied. Please log in as administrator.');
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this record?')) return;
     try {
       await deleteStudent(id);
@@ -94,6 +109,11 @@ export default function StudentManagement() {
   };
 
   useEffect(() => {
+    if (!isAdminSession()) {
+      setError('Access denied. Please log in as administrator.');
+      setTimeout(() => navigate('/login'), 800);
+      return;
+    }
     fetchStudents();
 
     // Setup WebSocket for Real-time synchronization

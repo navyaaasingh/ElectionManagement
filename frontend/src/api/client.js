@@ -1,7 +1,12 @@
 /**
  * Base API client that injects auth headers and handles JSON.
  */
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Allow empty string to mean "same origin" (useful for static hosting),
+// while still defaulting to localhost for local dev if nothing is provided.
+const BASE_URL =
+  (typeof import.meta.env.VITE_API_BASE_URL === 'string'
+    ? import.meta.env.VITE_API_BASE_URL
+    : (import.meta.env.VITE_API_URL || 'http://localhost:3000'));
 
 function getToken() {
   return localStorage.getItem('auth_token');

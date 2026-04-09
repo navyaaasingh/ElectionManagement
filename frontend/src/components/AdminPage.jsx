@@ -223,7 +223,7 @@ export default function AdminPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [newElection, setNewElection] = useState({
     election_name: '',
-    election_type: 'General',
+    election_type: 'INSTITUTIONAL',
     district_id: 'All',
     start_date: '',
     end_date: '',
@@ -238,7 +238,7 @@ export default function AdminPage() {
       setElections(response.elections || [])
       setNewElection({
         election_name: '',
-        election_type: 'General',
+        election_type: 'INSTITUTIONAL',
         district_id: 'All',
         start_date: '',
         end_date: '',
@@ -659,9 +659,9 @@ export default function AdminPage() {
                   <label>
                     <span className="field-label">Type</span>
                     <select className="field-input" value={newElection.election_type} onChange={(e) => setNewElection({...newElection, election_type: e.target.value})} style={{ borderRadius: '10px' }}>
-                      <option value="General">General Campus-wide</option>
-                      <option value="Departmental">Departmental Representative</option>
-                      <option value="Special">Special/By-election</option>
+                      <option value="INSTITUTIONAL">General Campus-wide</option>
+                      <option value="DEPARTMENTAL">Departmental Representative</option>
+                      <option value="BY_ELECTION">Special/By-election</option>
                     </select>
                   </label>
                 </div>

@@ -1,5 +1,5 @@
 const express = require('express');
-const { Candidate, Election  } = require('../models/index.js');
+const { Candidate, Election, CandidateApplication } = require('../models/index.js');
 const fabricService = require('../services/fabricService.js');
 const { authenticate, authorize  } = require('../middleware/auth.middleware.js');
 const { csrfProtection } = require('../middleware/csrf.middleware.js');
@@ -43,6 +43,184 @@ router.get('/', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve candidates',
+            message: error.message,
+        });
+    }
+});
+
+/**
+ * POST /api/v1/candidates/applications
+ * Public candidate application submission (student/candidate portal)
+ */
+router.post('/applications', async (req, res) => {
+    try {
+        const {
+            electionId,
+            name,
+            studentId,
+            email,
+            phone,
+            department,
+            year,
+            cgpa,
+            manifesto,
+            partyName,
+            partySymbol,
+            districtId,
+        } = req.body || {};
+
+        if (!electionId || !name || !studentId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields',
+                required: ['electionId', 'name', 'studentId'],
+            });
+        }
+
+        const election = await Election.findByPk(electionId);
+        if (!election) {
+            return res.status(404).json({ success: false, error: 'Election not found' });
+        }
+        if (['ACTIVE', 'COMPLETED', 'CANCELLED'].includes(election.status)) {
+            return res.status(403).json({
+                success: false,
+                error: `Applications are closed for election in ${election.status} status`,
+            });
+        }
+
+        const duplicate = await CandidateApplication.findOne({
+            where: { election_id: electionId, student_id: studentId, status: 'PENDING' },
+        });
+        if (duplicate) {
+            return res.status(409).json({
+                success: false,
+                error: 'An application for this student is already pending review',
+            });
+        }
+
+        const application = await CandidateApplication.create({
+            election_id: electionId,
+            applicant_name: name,
+            student_id: studentId,
+            email: email || null,
+            phone: phone || null,
+            department: department || null,
+            year: year || null,
+            cgpa: cgpa || null,
+            manifesto: manifesto || null,
+            requested_party_name: partyName || department || 'Independent',
+            requested_party_symbol: partySymbol || year || null,
+            requested_district_id: districtId || null,
+            status: 'PENDING',
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: 'Candidate application submitted successfully',
+            application,
+        });
+    } catch (error) {
+        console.error('Submit candidate application error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to submit candidate application',
+            message: error.message,
+        });
+    }
+});
+
+/**
+ * GET /api/v1/candidates/applications
+ * Admin list candidate applications
+ */
+router.get('/applications', authenticate, authorize('admin'), async (req, res) => {
+    try {
+        const { electionId, status = 'PENDING' } = req.query;
+        const where = {};
+        if (electionId) where.election_id = electionId;
+        if (status) where.status = String(status).toUpperCase();
+
+        const applications = await CandidateApplication.findAll({
+            where,
+            include: [{ model: Election, as: 'election', attributes: ['election_id', 'name', 'status', 'created_by_admin_id'] }],
+            order: [['created_at', 'DESC']],
+        });
+
+        const scoped = applications.filter((a) => canAccessElection(req, a.election));
+        return res.json({ success: true, applications: scoped, count: scoped.length });
+    } catch (error) {
+        console.error('Get candidate applications error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to fetch candidate applications',
+            message: error.message,
+        });
+    }
+});
+
+/**
+ * PUT /api/v1/candidates/applications/:id/status
+ * Admin review candidate application
+ */
+router.put('/applications/:id/status', authenticate, authorize('admin'), csrfProtection, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body || {};
+        const requestedStatus = String(status || '').toUpperCase();
+        if (!['APPROVED', 'REJECTED'].includes(requestedStatus)) {
+            return res.status(400).json({ success: false, error: 'Invalid status', valid: ['APPROVED', 'REJECTED'] });
+        }
+
+        const application = await CandidateApplication.findByPk(id, {
+            include: [{ model: Election, as: 'election' }],
+        });
+        if (!application) {
+            return res.status(404).json({ success: false, error: 'Application not found' });
+        }
+        if (!canAccessElection(req, application.election)) {
+            return res.status(403).json({ success: false, error: 'Not authorized to review this application' });
+        }
+
+        await application.update({
+            status: requestedStatus,
+            reviewed_by_admin_id: req.user?.adminId || null,
+            review_notes: notes || null,
+        });
+
+        // Optional promotion to candidate if approved and district is known
+        let candidate = null;
+        if (requestedStatus === 'APPROVED' && application.requested_district_id) {
+            const existingCandidate = await Candidate.findOne({
+                where: {
+                    election_id: application.election_id,
+                    full_name: application.applicant_name,
+                },
+            });
+            if (!existingCandidate) {
+                candidate = await Candidate.create({
+                    election_id: application.election_id,
+                    full_name: application.applicant_name,
+                    party_name: application.requested_party_name || 'Independent',
+                    party_symbol: application.requested_party_symbol || null,
+                    district_id: application.requested_district_id,
+                    status: 'active',
+                });
+            } else {
+                candidate = existingCandidate;
+            }
+        }
+
+        return res.json({
+            success: true,
+            message: `Application ${requestedStatus.toLowerCase()}`,
+            application,
+            candidate,
+        });
+    } catch (error) {
+        console.error('Review candidate application error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to review candidate application',
             message: error.message,
         });
     }

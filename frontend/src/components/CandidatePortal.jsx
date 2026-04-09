@@ -39,6 +39,9 @@ export default function CandidatePortal() {
         
         if (response.elections) {
           setElections(response.elections)
+          if (!selectedElection && response.elections.length > 0) {
+            setSelectedElection(response.elections[0])
+          }
         } else {
           setElections([])
         }
@@ -84,15 +87,30 @@ export default function CandidatePortal() {
     return Boolean(form.name && form.studentId && form.department && cgpa >= 7 && form.manifesto.length >= 100)
   }, [form])
 
+  const validationErrors = useMemo(() => {
+    const errors = []
+    if (!selectedElection) errors.push('Select an election first.')
+    if (!form.name?.trim()) errors.push('Full name is required.')
+    if (!form.studentId?.trim()) errors.push('Student ID is required.')
+    if (!form.department?.trim()) errors.push('Department is required.')
+    if (!form.cgpa || Number(form.cgpa) < 7) errors.push('CGPA must be 7.0 or above.')
+    if (!form.manifesto || form.manifesto.length < 100) errors.push('Manifesto must be at least 100 characters.')
+    return errors
+  }, [form, selectedElection])
+
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!selectedElection || !eligible) return
+    if (validationErrors.length > 0) {
+      setStatus({ error: validationErrors.join(' ') })
+      return
+    }
 
     setStatus('loading')
 
     try {
       await submitCandidateApplication({
         electionId: selectedElection.election_id,
+        districtId: selectedElection.district_id || null,
         ...form,
       })
 
@@ -121,7 +139,7 @@ export default function CandidatePortal() {
       })
       setLastSaved(null)
     } catch (err) {
-      setStatus({ error: err.message || 'Application submission failed.' })
+      setStatus({ error: err?.data?.error || err?.message || 'Application submission failed.' })
     }
   }
 
@@ -281,10 +299,15 @@ export default function CandidatePortal() {
               <button type="button" className="button button--ghost" onClick={() => setTab('browse')}>
                 Choose election
               </button>
-              <button type="submit" className="button button--primary" disabled={!selectedElection || !eligible || status === 'loading'}>
+              <button type="submit" className="button button--primary" disabled={!selectedElection || status === 'loading'}>
                 {status === 'loading' ? 'Submitting' : 'Submit application'}
               </button>
             </div>
+            {!eligible ? (
+              <div style={{ marginTop: 8, fontSize: '0.78rem', color: '#8b1d1d' }}>
+                {validationErrors[0] || 'Complete all required fields to submit.'}
+              </div>
+            ) : null}
           </form>
         </div>
       ) : null}

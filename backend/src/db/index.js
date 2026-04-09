@@ -483,6 +483,91 @@ const ensureSchemaCompatibility = async () => {
         console.log('✅ Created missing table vote_saga_status');
     }
 
+    try {
+        await qi.describeTable('candidate_applications');
+    } catch {
+        await qi.createTable('candidate_applications', {
+            application_id: {
+                type: Sequelize.UUID,
+                primaryKey: true,
+                allowNull: false,
+                defaultValue: Sequelize.UUIDV4,
+            },
+            election_id: {
+                type: Sequelize.UUID,
+                allowNull: false,
+            },
+            applicant_name: {
+                type: Sequelize.STRING(255),
+                allowNull: false,
+            },
+            student_id: {
+                type: Sequelize.STRING(64),
+                allowNull: false,
+            },
+            email: {
+                type: Sequelize.STRING(255),
+                allowNull: true,
+            },
+            phone: {
+                type: Sequelize.STRING(32),
+                allowNull: true,
+            },
+            department: {
+                type: Sequelize.STRING(128),
+                allowNull: true,
+            },
+            year: {
+                type: Sequelize.STRING(32),
+                allowNull: true,
+            },
+            cgpa: {
+                type: Sequelize.DECIMAL(4, 2),
+                allowNull: true,
+            },
+            manifesto: {
+                type: Sequelize.TEXT,
+                allowNull: true,
+            },
+            requested_party_name: {
+                type: Sequelize.STRING(255),
+                allowNull: true,
+            },
+            requested_party_symbol: {
+                type: Sequelize.STRING(255),
+                allowNull: true,
+            },
+            requested_district_id: {
+                type: Sequelize.UUID,
+                allowNull: true,
+            },
+            status: {
+                type: Sequelize.STRING(20),
+                allowNull: false,
+                defaultValue: 'PENDING',
+            },
+            reviewed_by_admin_id: {
+                type: Sequelize.UUID,
+                allowNull: true,
+            },
+            review_notes: {
+                type: Sequelize.TEXT,
+                allowNull: true,
+            },
+            created_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+            updated_at: {
+                type: Sequelize.DATE,
+                allowNull: false,
+                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
+            },
+        });
+        console.log('✅ Created missing table candidate_applications');
+    }
+
     await addIndexIfMissing('outbox_events', ['status', 'next_attempt_at'], {
         name: 'outbox_events_status_next_attempt_idx',
     });
@@ -492,11 +577,17 @@ const ensureSchemaCompatibility = async () => {
     await addIndexIfMissing('vote_saga_status', ['current_state', 'state_updated_at'], {
         name: 'vote_saga_status_state_time_idx',
     });
+    await addIndexIfMissing('candidate_applications', ['election_id', 'status'], {
+        name: 'candidate_applications_election_status_idx',
+    });
+    await addIndexIfMissing('candidate_applications', ['student_id', 'election_id'], {
+        name: 'candidate_applications_student_election_idx',
+    });
 
     if (dialect === 'postgres') {
         const schemaToTables = {
             [CONTEXT_SCHEMAS.voter]: ['voters', 'students'],
-            [CONTEXT_SCHEMAS.election]: ['elections', 'candidates', 'poll_approvals'],
+            [CONTEXT_SCHEMAS.election]: ['elections', 'candidates', 'poll_approvals', 'candidate_applications'],
             [CONTEXT_SCHEMAS.vote]: ['voting_records', 'vote_nonces', 'outbox_events', 'dead_letter_events', 'vote_saga_status'],
         };
 

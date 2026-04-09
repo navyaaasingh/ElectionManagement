@@ -9,6 +9,7 @@ const TABLE_CONTEXT_MAP = {
     students: 'voter',
     elections: 'election',
     candidates: 'election',
+    candidate_applications: 'election',
     poll_approvals: 'election',
     voting_records: 'vote',
     vote_nonces: 'vote',
