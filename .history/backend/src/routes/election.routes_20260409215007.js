@@ -1,5 +1,5 @@
 const express = require('express');
-const { Election, Candidate, VotingRecord, PollApproval, Voter } = require('../models/index.js');
+const { Election, Candidate, VotingRecord, PollApproval } = require('../models/index.js');
 const iotService = require('../services/iotService.js');
 const resultsService = require('../services/resultsService.js');
 const eligibilityService = require('../services/eligibilityService.js');
@@ -196,43 +196,6 @@ router.get('/:id', async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ success: false, error: 'Failed to retrieve election', message: error.message });
-    }
-});
-
-/**
- * GET /api/v1/elections/:id/eligibility/:voterId
- * Evaluate dynamic eligibility rules for a specific voter.
- */
-router.get('/:id/eligibility/:voterId', authenticate, authorize('admin', 'observer'), async (req, res) => {
-    try {
-        const election = await Election.findByPk(req.params.id);
-        if (!election) {
-            return res.status(404).json({ success: false, error: 'Election not found' });
-        }
-
-        const voter = await Voter.findByPk(req.params.voterId);
-        if (!voter) {
-            return res.status(404).json({ success: false, error: 'Voter not found' });
-        }
-
-        if (!canAccessElection(req, election) && req.user?.adminRole !== 'SUPER_ADMIN') {
-            return res.status(403).json({ success: false, error: 'You can only evaluate eligibility for your own elections' });
-        }
-
-        const result = await eligibilityService.evaluateVoter(voter, election, {
-            districtId: voter.district_id,
-        });
-
-        return res.json({
-            success: true,
-            election_id: election.election_id,
-            voter_id: voter.voter_id,
-            eligible: result.eligible,
-            reasons: result.reasons,
-            appliedRules: result.appliedRules,
-        });
-    } catch (error) {
-        return res.status(500).json({ success: false, error: 'Eligibility evaluation failed', message: error.message });
     }
 });
 

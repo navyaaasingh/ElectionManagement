@@ -182,10 +182,6 @@ const ensureSchemaCompatibility = async () => {
         type: Sequelize.STRING(64),
         allowNull: true,
     });
-    await ensureColumn('voting_records', 'candidate_id', {
-        type: Sequelize.UUID,
-        allowNull: true,
-    });
     await ensureColumn('voting_records', 'request_nonce', {
         type: Sequelize.STRING(128),
         allowNull: true,
@@ -217,11 +213,6 @@ const ensureSchemaCompatibility = async () => {
     await ensureColumn('voters', 'location_meta', {
         type: Sequelize.JSON,
         allowNull: true,
-    });
-    await ensureColumn('candidates', 'runoff_status', {
-        type: Sequelize.STRING(20),
-        allowNull: false,
-        defaultValue: 'active',
     });
 
     try {

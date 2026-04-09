@@ -1,8 +1,7 @@
 const express = require('express');
-const { Election, Candidate, VotingRecord, PollApproval, Voter } = require('../models/index.js');
+const { Election, Candidate, VotingRecord, PollApproval } = require('../models/index.js');
 const iotService = require('../services/iotService.js');
 const resultsService = require('../services/resultsService.js');
-const eligibilityService = require('../services/eligibilityService.js');
 const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const { csrfProtection } = require('../middleware/csrf.middleware.js');
 const { sequelize } = require('../db/index.js');
@@ -200,43 +199,6 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * GET /api/v1/elections/:id/eligibility/:voterId
- * Evaluate dynamic eligibility rules for a specific voter.
- */
-router.get('/:id/eligibility/:voterId', authenticate, authorize('admin', 'observer'), async (req, res) => {
-    try {
-        const election = await Election.findByPk(req.params.id);
-        if (!election) {
-            return res.status(404).json({ success: false, error: 'Election not found' });
-        }
-
-        const voter = await Voter.findByPk(req.params.voterId);
-        if (!voter) {
-            return res.status(404).json({ success: false, error: 'Voter not found' });
-        }
-
-        if (!canAccessElection(req, election) && req.user?.adminRole !== 'SUPER_ADMIN') {
-            return res.status(403).json({ success: false, error: 'You can only evaluate eligibility for your own elections' });
-        }
-
-        const result = await eligibilityService.evaluateVoter(voter, election, {
-            districtId: voter.district_id,
-        });
-
-        return res.json({
-            success: true,
-            election_id: election.election_id,
-            voter_id: voter.voter_id,
-            eligible: result.eligible,
-            reasons: result.reasons,
-            appliedRules: result.appliedRules,
-        });
-    } catch (error) {
-        return res.status(500).json({ success: false, error: 'Eligibility evaluation failed', message: error.message });
-    }
-});
-
-/**
  * POST /api/v1/elections
  */
 router.post('/', authenticate, authorize('admin'), csrfProtection, async (req, res) => {
@@ -272,13 +234,6 @@ router.post('/', authenticate, authorize('admin'), csrfProtection, async (req, r
         }
         if (start >= end) {
             return res.status(400).json({ success: false, error: 'Start date must be before end date' });
-        }
-
-        if (eligibilityRules !== undefined && eligibilityRules !== null) {
-            const validation = eligibilityService.validateRules(eligibilityRules);
-            if (!validation.valid) {
-                return res.status(400).json({ success: false, error: 'Invalid eligibility rules', details: validation.errors });
-            }
         }
 
         const election = await Election.create({
@@ -335,12 +290,6 @@ router.put('/:id', authenticate, authorize('admin'), csrfProtection, async (req,
             const parsed = parseJsonField(req.body.eligibilityRules ?? req.body.eligibility_rules);
             if (parsed === undefined) {
                 return res.status(400).json({ success: false, error: 'Invalid eligibilityRules JSON' });
-            }
-            if (parsed !== null) {
-                const validation = eligibilityService.validateRules(parsed);
-                if (!validation.valid) {
-                    return res.status(400).json({ success: false, error: 'Invalid eligibility rules', details: validation.errors });
-                }
             }
             updateData.eligibility_rules = parsed;
         }

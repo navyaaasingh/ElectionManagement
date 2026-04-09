@@ -72,18 +72,13 @@ class FabricService {
 
         const crypto = require('crypto');
         const hash = (v) => crypto.createHash('sha256').update(v).digest('hex');
-        const normalizeHash = (value) => {
-            const raw = String(value || '').trim().toLowerCase();
-            if (!raw) return '';
-            return /^[a-f0-9]{64}$/.test(raw) ? raw : hash(raw);
-        };
 
-        const leafHash = normalizeHash(
+        const leafHash = String(
             proof.leafHash ||
             proof.leaf ||
             proof.leaf_hash ||
-            expectedLeafValue
-        );
+            hash(String(expectedLeafValue || ''))
+        ).toLowerCase();
         let root = String(proof.merkleRoot || proof.root || proof.merkle_root || '').toLowerCase();
         const path = Array.isArray(proof.proof)
             ? proof.proof
@@ -106,13 +101,13 @@ class FabricService {
 
         let computed = leafHash;
         for (const step of path) {
-            const sibling = normalizeHash(
+            const sibling = String(
                 step?.hash ||
                 step?.sibling ||
                 step?.siblingHash ||
                 step?.value ||
                 ''
-            );
+            ).toLowerCase();
             if (!sibling) return false;
             const position = String(step?.position || step?.side || step?.direction || 'right').toLowerCase();
             computed = position === 'left'

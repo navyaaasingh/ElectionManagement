@@ -243,29 +243,6 @@ router.get('/:electionId/district/:districtId', resultsLimiter, async (req, res)
 });
 
 /**
- * GET /api/v1/results/:electionId/runoff
- * Compute multi-round elimination breakdown when configured.
- */
-router.get('/:electionId/runoff', resultsLimiter, async (req, res) => {
-    try {
-        const { electionId } = req.params;
-        const election = await Election.findByPk(electionId);
-        if (!election) {
-            return res.status(404).json({ success: false, error: 'Election not found' });
-        }
-
-        const runoff = await runoffService.calculateRunoff(election);
-        return res.json({
-            success: true,
-            election_id: election.election_id,
-            runoff,
-        });
-    } catch (error) {
-        return res.status(500).json({ success: false, error: 'Failed to compute runoff', message: error.message });
-    }
-});
-
-/**
  * GET /api/v1/results/:electionId/export
  * Export election results as CSV (authenticated)
  */

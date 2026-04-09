@@ -38,8 +38,8 @@ class VoteService {
             encryptedVote,
             zkpCommitment,
             nonce,
-            biometricHash,
-            ranking,
+            biometricHash
+            ,ranking
         } = voteData;
 
         try {
@@ -60,14 +60,6 @@ class VoteService {
             const effectiveNonce = nonce || crypto.createHash('sha256')
                 .update(`${voterId}:${electionId}:${candidateId}:${requestTs}:${terminalId}`)
                 .digest('hex');
-
-            const normalizedRanking = Array.isArray(ranking)
-                ? ranking.map((item) => String(item)).filter(Boolean)
-                : [];
-
-            if (normalizedRanking.length > 0 && !normalizedRanking.includes(String(candidateId))) {
-                throw new Error('Ranking payload must include selected candidateId');
-            }
 
             // 1. Verify election is active
             const election = await Election.findByPk(electionId);
@@ -250,14 +242,13 @@ class VoteService {
                     record_id: voteId,
                     voter_id: voterId,
                     election_id: electionId,
-                    candidate_id: candidateId,
                     terminal_id: terminalId,
                     verification_hash: verificationHash,
                     biometric_hash_salted: saltedBiometricHash,
                     request_nonce: effectiveNonce,
                     blockchain_tx_id: blockchainTxId,
                     vote_timestamp: new Date(requestTs),
-                    ranking_payload: normalizedRanking.length > 0 ? normalizedRanking : null,
+                    ranking_payload: Array.isArray(ranking) && ranking.length > 0 ? ranking : null,
                 }, { transaction: tx });
 
                 await voter.update({ has_voted: true }, { transaction: tx });
@@ -544,21 +535,6 @@ class VoteService {
                 };
             }
 
-            const proofPath = Array.isArray(merkleProof?.proof)
-                ? merkleProof.proof
-                : Array.isArray(merkleProof?.path)
-                    ? merkleProof.path
-                    : Array.isArray(merkleProof?.merklePath)
-                        ? merkleProof.merklePath
-                        : [];
-
-            if (enforceReceiptProof && proofPath.length === 0) {
-                return {
-                    verified: false,
-                    error: 'Merkle proof path is empty',
-                };
-            }
-
             return {
                 verified: true,
                 vote: {
@@ -572,7 +548,6 @@ class VoteService {
                     merkleProofVerified: proofVerified,
                     blockNumber: blockchainVote?.blockNumber || null,
                     merkleProof: merkleProof || null,
-                    merklePath: proofPath,
                 }
             };
 

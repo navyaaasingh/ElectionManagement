@@ -24,14 +24,6 @@ const VotingRecord = sequelize.define('voting_records', {
             key: 'election_id',
         },
     },
-    candidate_id: {
-        type: DataTypes.UUID,
-        allowNull: true,
-        references: {
-            model: 'candidates',
-            key: 'candidate_id',
-        },
-    },
     terminal_id: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -73,7 +65,6 @@ const VotingRecord = sequelize.define('voting_records', {
         { unique: true, fields: ['voter_id', 'election_id'] },
         { fields: ['voter_id', 'election_id'] },
         { fields: ['election_id'] },
-        { fields: ['candidate_id'] },
         { fields: ['vote_timestamp'] },
         { fields: ['blockchain_tx_id'] },
         { fields: ['verification_hash'] },
