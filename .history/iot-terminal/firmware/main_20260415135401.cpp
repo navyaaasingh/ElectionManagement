@@ -509,10 +509,10 @@ void loop() {
 
     int selectableCount = availableCandidateCount;
     if (selectableCount > 4) {
+      selectableCount = 4;
       Serial.println(
-          "❌ Candidate set exceeds button capacity (max 4 candidates)");
-      currentState = STATE_ERROR;
-      break;
+          "⚠️ More than 4 candidates available, using first 4 for button "
+          "mapping");
     }
 
     for (int i = 0; i < selectableCount; i++) {
