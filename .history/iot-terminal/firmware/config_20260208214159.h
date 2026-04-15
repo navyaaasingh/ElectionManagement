@@ -12,13 +12,11 @@
 #define MQTT_PORT 1883
 #define MQTT_USERNAME "election_terminal"
 #define MQTT_PASSWORD "terminal_mqtt_password"
-
 #define MQTT_CLIENT_ID_PREFIX "TERMINAL_"
-#define MQTT_TOPIC_VOTE "election/vote/submit"
+#define MQTT_TOPIC_VOTE "election/votes"
 #define MQTT_TOPIC_AUTH "election/auth"
 #define MQTT_TOPIC_STATUS "election/terminal/status"
 #define MQTT_RECONNECT_DELAY_MS 5000
-
 
 // Fingerprint Sensor Configuration (Adafruit AS608)
 #define FINGERPRINT_RX_PIN 16
