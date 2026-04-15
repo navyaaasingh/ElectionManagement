@@ -102,8 +102,7 @@ void syncCachedVotes() {
   while (index < cache->getVoteCount()) {
     CachedVote vote = cache->getVote(index);
 
-    if (vote.voterId.length() == 0 || vote.electionId.length() == 0 ||
-        vote.candidateId.length() == 0 ||
+    if (vote.voterId.length() == 0 || vote.candidateId.length() == 0 ||
         vote.biometricHash.length() == 0) {
       Serial.println("⚠️ Dropping invalid cached vote entry");
       cache->removeVote(index);
@@ -111,7 +110,7 @@ void syncCachedVotes() {
     }
 
     if (network->publishVote(vote.voterId, vote.electionId,
-                             vote.candidateId,
+                 vote.candidateId,
                              vote.biometricHash)) {
       cache->removeVote(index);
       syncedCount++;
@@ -294,16 +293,15 @@ void loop() {
 
   // State machine
   switch (currentState) {
-  case STATE_READY: {
+  case STATE_READY:
     Serial.println("\n👤 READY FOR VOTER");
     Serial.println("   Place finger on sensor to begin...\n");
     setLED(LED_READY_PIN, true);
 
     currentState = STATE_SCANNING;
     break;
-  }
 
-  case STATE_SCANNING: {
+  case STATE_SCANNING:
     setLED(LED_SCANNING_PIN, true);
     setLED(LED_READY_PIN, false);
 
@@ -321,9 +319,8 @@ void loop() {
       setLED(LED_SCANNING_PIN, false);
     }
     break;
-  }
 
-  case STATE_AUTHENTICATING: {
+  case STATE_AUTHENTICATING:
     Serial.println("\n🔍 Authenticating voter...");
 
     // Send to backend via MQTT
@@ -376,9 +373,8 @@ void loop() {
 
     setLED(LED_SCANNING_PIN, false);
     break;
-  }
 
-  case STATE_VOTING: {
+  case STATE_VOTING:
     Serial.println("\n🗳️  VOTING IN PROGRESS");
     Serial.println("   Select candidate on touchscreen...\n");
 
@@ -406,8 +402,8 @@ void loop() {
 
         Serial.println("\n📤 Submitting vote to blockchain...");
         bool publishSuccess =
-            network->publishVote(currentVoterId, currentElectionId,
-                                 selectedCandidate, voteHash);
+          network->publishVote(currentVoterId, currentElectionId,
+                     selectedCandidate, voteHash);
 
         if (publishSuccess) {
           unsigned long ackStart = millis();
@@ -461,9 +457,8 @@ void loop() {
       currentState = STATE_ERROR;
     }
     break;
-  }
 
-  case STATE_SUCCESS: {
+  case STATE_SUCCESS:
     Serial.println("\n✅ ═══════════════════════════════════");
     Serial.println("   VOTE CAST SUCCESSFULLY!");
     Serial.println("   Thank you for voting.");
@@ -474,13 +469,12 @@ void loop() {
     delay(3000);
 
     // Reset for next voter
-    resetSession();
+  resetSession();
     currentState = STATE_READY;
     clearAllLEDs();
     break;
-  }
 
-  case STATE_ERROR: {
+  case STATE_ERROR:
     Serial.println("\n❌ ═══════════════════════════════════");
     Serial.println("   ERROR OCCURRED");
     Serial.println("   Please contact election officials.");
@@ -495,12 +489,10 @@ void loop() {
     currentState = STATE_READY;
     clearAllLEDs();
     break;
-  }
 
-  case STATE_TAMPERED: {
+  case STATE_TAMPERED:
     // Already handled above
     break;
-  }
   }
 
   delay(100);

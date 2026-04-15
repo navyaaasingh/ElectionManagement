@@ -149,13 +149,12 @@ bool NetworkManager::publish(const char *topic, const char *payload) {
 /**
  * Publish vote to backend
  */
-bool NetworkManager::publishVote(String voterId, String electionId,
-                                 String candidateId, String biometricHash) {
+bool NetworkManager::publishVote(String voterId, String candidateId,
+                                 String biometricHash) {
   StaticJsonDocument<512> doc;
 
   doc["terminalId"] = TERMINAL_ID;
   doc["voterId"] = voterId;
-  doc["electionId"] = electionId;
   doc["candidateId"] = candidateId;
   doc["districtId"] = DISTRICT_ID;
   doc["biometricHash"] = biometricHash;

@@ -294,16 +294,15 @@ void loop() {
 
   // State machine
   switch (currentState) {
-  case STATE_READY: {
+  case STATE_READY:
     Serial.println("\n👤 READY FOR VOTER");
     Serial.println("   Place finger on sensor to begin...\n");
     setLED(LED_READY_PIN, true);
 
     currentState = STATE_SCANNING;
     break;
-  }
 
-  case STATE_SCANNING: {
+  case STATE_SCANNING:
     setLED(LED_SCANNING_PIN, true);
     setLED(LED_READY_PIN, false);
 
@@ -321,9 +320,8 @@ void loop() {
       setLED(LED_SCANNING_PIN, false);
     }
     break;
-  }
 
-  case STATE_AUTHENTICATING: {
+  case STATE_AUTHENTICATING:
     Serial.println("\n🔍 Authenticating voter...");
 
     // Send to backend via MQTT
@@ -376,9 +374,8 @@ void loop() {
 
     setLED(LED_SCANNING_PIN, false);
     break;
-  }
 
-  case STATE_VOTING: {
+  case STATE_VOTING:
     Serial.println("\n🗳️  VOTING IN PROGRESS");
     Serial.println("   Select candidate on touchscreen...\n");
 
@@ -461,9 +458,8 @@ void loop() {
       currentState = STATE_ERROR;
     }
     break;
-  }
 
-  case STATE_SUCCESS: {
+  case STATE_SUCCESS:
     Serial.println("\n✅ ═══════════════════════════════════");
     Serial.println("   VOTE CAST SUCCESSFULLY!");
     Serial.println("   Thank you for voting.");
@@ -478,9 +474,8 @@ void loop() {
     currentState = STATE_READY;
     clearAllLEDs();
     break;
-  }
 
-  case STATE_ERROR: {
+  case STATE_ERROR:
     Serial.println("\n❌ ═══════════════════════════════════");
     Serial.println("   ERROR OCCURRED");
     Serial.println("   Please contact election officials.");
@@ -495,12 +490,10 @@ void loop() {
     currentState = STATE_READY;
     clearAllLEDs();
     break;
-  }
 
-  case STATE_TAMPERED: {
+  case STATE_TAMPERED:
     // Already handled above
     break;
-  }
   }
 
   delay(100);

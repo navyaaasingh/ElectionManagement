@@ -43,9 +43,8 @@ bool OfflineCache::begin() {
 /**
  * Add vote to offline cache
  */
-bool OfflineCache::addVote(String voterId, String electionId,
-                           String candidateId, String biometricHash,
-                           String timestamp) {
+bool OfflineCache::addVote(String voterId, String candidateId,
+                           String biometricHash, String timestamp) {
   if (!initialized) {
     Serial.println("❌ Offline cache not initialized");
     return false;
@@ -80,7 +79,6 @@ bool OfflineCache::addVote(String voterId, String electionId,
 
   JsonObject vote = votes.createNestedObject();
   vote["voterId"] = voterId;
-  vote["electionId"] = electionId;
   vote["candidateId"] = candidateId;
   vote["biometricHash"] = biometricHash;
   vote["timestamp"] = timestamp;
@@ -142,7 +140,6 @@ CachedVote OfflineCache::getVote(int index) {
   if (votes && index < votes.size()) {
     JsonObject voteObj = votes[index];
     vote.voterId = voteObj["voterId"].as<String>();
-    vote.electionId = voteObj["electionId"].as<String>();
     vote.candidateId = voteObj["candidateId"].as<String>();
     vote.biometricHash = voteObj["biometricHash"].as<String>();
     vote.timestamp = voteObj["timestamp"].as<String>();
