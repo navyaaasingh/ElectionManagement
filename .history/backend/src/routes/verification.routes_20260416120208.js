@@ -1,5 +1,4 @@
 const express = require('express');
-const crypto = require('crypto');
 const {
     BoothSession,
     Election,
@@ -7,7 +6,6 @@ const {
     VotingRecord,
     VoteAttempt,
     ManualOverrideRequest,
-    CustodyEvent,
 } = require('../models/index.js');
 const { authenticate, authorize } = require('../middleware/auth.middleware.js');
 const { csrfProtection } = require('../middleware/csrf.middleware.js');
@@ -19,37 +17,6 @@ const canAccessSession = (req, session) => {
     if (!session) return false;
     if (req.user?.role === 'admin') return true;
     return req.user?.role === 'supervisor' && req.user?.adminId === session.supervisor_admin_id;
-};
-
-const appendCustodyEvent = async ({ electionId, boothId, terminalId, actorAdminId, eventType, payload }) => {
-    const previous = await CustodyEvent.findOne({
-        where: { election_id: electionId },
-        order: [['created_at', 'DESC']],
-    });
-
-    const prevHash = previous?.event_hash || null;
-    const source = JSON.stringify({
-        electionId,
-        boothId,
-        terminalId,
-        actorAdminId,
-        eventType,
-        payload: payload || {},
-        prevHash,
-        now: Date.now(),
-    });
-    const eventHash = crypto.createHash('sha256').update(source).digest('hex');
-
-    await CustodyEvent.create({
-        election_id: electionId,
-        booth_id: boothId || null,
-        terminal_id: terminalId || null,
-        actor_admin_id: actorAdminId || null,
-        event_type: eventType,
-        event_hash: eventHash,
-        prev_event_hash: prevHash,
-        payload: payload || {},
-    });
 };
 
 const trackVerificationAttempt = async ({
@@ -118,12 +85,6 @@ router.post('/biometric', authenticate, authorize('admin', 'supervisor'), csrfPr
 
         if (!election) {
             return res.status(404).json({ success: false, error: 'Election not found for session' });
-        }
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN' && election.created_by_admin_id !== req.user.adminId) {
-            return res.status(403).json({
-                success: false,
-                error: 'You can only verify voters for elections that you manage',
-            });
         }
         if (!voter) {
             await trackVerificationAttempt({
@@ -278,16 +239,6 @@ router.post('/manual-override', authenticate, authorize('admin', 'supervisor'), 
             return res.status(403).json({ success: false, error: 'You are not allowed to raise override requests in this session' });
         }
 
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN') {
-            const election = await Election.findByPk(session.election_id);
-            if (!election || election.created_by_admin_id !== req.user.adminId) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'You can only raise overrides for elections that you manage',
-                });
-            }
-        }
-
         const request = await ManualOverrideRequest.create({
             election_id: session.election_id,
             booth_session_id: session.session_id,
@@ -338,35 +289,11 @@ router.post('/manual-override/:id/approve', authenticate, authorize('admin'), cs
             return res.status(409).json({ success: false, error: 'Manual override request is already resolved' });
         }
 
-        if (req.user.adminRole !== 'SUPER_ADMIN') {
-            const election = await Election.findByPk(request.election_id);
-            if (!election || election.created_by_admin_id !== req.user.adminId) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'You can only resolve overrides for elections that you manage',
-                });
-            }
-        }
-
         await request.update({
             status: normalizedDecision === 'APPROVE' ? 'APPROVED' : 'REJECTED',
             approved_by_admin_id: req.user.adminId,
             resolved_at: new Date(),
             resolution_notes: notes || null,
-        });
-
-        const session = await BoothSession.findByPk(request.booth_session_id);
-        await appendCustodyEvent({
-            electionId: request.election_id,
-            boothId: session?.booth_id || null,
-            terminalId: session?.terminal_id || null,
-            actorAdminId: req.user.adminId,
-            eventType: normalizedDecision === 'APPROVE' ? 'OVERRIDE_APPROVED' : 'OVERRIDE_REJECTED',
-            payload: {
-                overrideId: request.override_id,
-                voterId: request.voter_id,
-                reasonCode: request.reason_code,
-            },
         });
 
         return res.json({

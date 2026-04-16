@@ -119,12 +119,6 @@ router.post('/biometric', authenticate, authorize('admin', 'supervisor'), csrfPr
         if (!election) {
             return res.status(404).json({ success: false, error: 'Election not found for session' });
         }
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN' && election.created_by_admin_id !== req.user.adminId) {
-            return res.status(403).json({
-                success: false,
-                error: 'You can only verify voters for elections that you manage',
-            });
-        }
         if (!voter) {
             await trackVerificationAttempt({
                 electionId: session.election_id,
@@ -278,16 +272,6 @@ router.post('/manual-override', authenticate, authorize('admin', 'supervisor'), 
             return res.status(403).json({ success: false, error: 'You are not allowed to raise override requests in this session' });
         }
 
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN') {
-            const election = await Election.findByPk(session.election_id);
-            if (!election || election.created_by_admin_id !== req.user.adminId) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'You can only raise overrides for elections that you manage',
-                });
-            }
-        }
-
         const request = await ManualOverrideRequest.create({
             election_id: session.election_id,
             booth_session_id: session.session_id,
@@ -336,16 +320,6 @@ router.post('/manual-override/:id/approve', authenticate, authorize('admin'), cs
         }
         if (request.status !== 'PENDING_APPROVAL') {
             return res.status(409).json({ success: false, error: 'Manual override request is already resolved' });
-        }
-
-        if (req.user.adminRole !== 'SUPER_ADMIN') {
-            const election = await Election.findByPk(request.election_id);
-            if (!election || election.created_by_admin_id !== req.user.adminId) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'You can only resolve overrides for elections that you manage',
-                });
-            }
         }
 
         await request.update({

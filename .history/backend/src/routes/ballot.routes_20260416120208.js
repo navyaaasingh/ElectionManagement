@@ -56,12 +56,6 @@ router.post('/issue', authenticate, authorize('admin', 'supervisor'), csrfProtec
 
         if (!election) return res.status(404).json({ success: false, error: 'Election not found' });
         if (!voter) return res.status(404).json({ success: false, error: 'Voter not found' });
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN' && election.created_by_admin_id !== req.user.adminId) {
-            return res.status(403).json({
-                success: false,
-                error: 'You can only issue ballot tokens for elections that you manage',
-            });
-        }
         if (!['ACTIVE', 'ACTIVE_POLLING'].includes(election.status)) {
             return res.status(409).json({
                 success: false,

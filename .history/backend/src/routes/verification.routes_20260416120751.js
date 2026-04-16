@@ -119,12 +119,6 @@ router.post('/biometric', authenticate, authorize('admin', 'supervisor'), csrfPr
         if (!election) {
             return res.status(404).json({ success: false, error: 'Election not found for session' });
         }
-        if (req.user.role === 'admin' && req.user.adminRole !== 'SUPER_ADMIN' && election.created_by_admin_id !== req.user.adminId) {
-            return res.status(403).json({
-                success: false,
-                error: 'You can only verify voters for elections that you manage',
-            });
-        }
         if (!voter) {
             await trackVerificationAttempt({
                 electionId: session.election_id,
