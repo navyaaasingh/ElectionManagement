@@ -5,7 +5,7 @@ const kafka = new Kafka({
     clientId: 'election-backend',
     brokers: process.env.KAFKA_BROKER
         ? process.env.KAFKA_BROKER.split(',').map((value) => value.trim()).filter(Boolean)
-        : ['localhost:29092', 'localhost:9092'],
+        : ['localhost:9092', 'localhost:29092'],
     retry: {
         initialRetryTime: process.env.NODE_ENV === 'development' ? 50 : 100,
         retries: process.env.NODE_ENV === 'development' ? 2 : 8

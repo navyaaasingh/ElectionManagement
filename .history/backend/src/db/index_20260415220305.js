@@ -176,14 +176,6 @@ const ensureSchemaCompatibility = async () => {
         type: Sequelize.UUID,
         allowNull: true,
     });
-    await ensureColumn('voters', 'email', {
-        type: Sequelize.STRING(255),
-        allowNull: true,
-    });
-    await ensureColumn('voters', 'password', {
-        type: Sequelize.STRING(255),
-        allowNull: true,
-    });
     await ensureColumn('voters', 'is_approved', {
         type: Sequelize.BOOLEAN,
         allowNull: false,
@@ -342,14 +334,6 @@ const ensureSchemaCompatibility = async () => {
     await addIndexIfMissing('voting_records', ['voter_id', 'election_id'], {
         unique: true,
         name: 'voting_records_voter_election_unique_idx',
-    });
-    await addIndexIfMissing('voters', ['email'], {
-        unique: true,
-        name: 'voters_email_unique_idx',
-    });
-    await addIndexIfMissing('voters', ['roll_number'], {
-        unique: true,
-        name: 'voters_roll_number_unique_idx',
     });
     await addIndexIfMissing('voting_records', ['verification_hash'], {
         unique: dialect !== 'sqlite',

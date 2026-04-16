@@ -172,7 +172,7 @@ app.get('/api/v1', (req, res) => {
 // Note: Express strips the mount prefix from req.url, so req.url is the remainder after /api/ml
 // Flask routes are defined at /health, /api/ml/analyze etc. We re-add /api/ml for analyze/batch routes.
 app.use('/api/ml', (req, res) => {
-    const mlBaseUrl = process.env.PYTHON_ML_SERVICE_URL || 'http://localhost:5001';
+    const mlBaseUrl = process.env.PYTHON_ML_SERVICE_URL || 'http://localhost:5000';
     // req.url here is e.g. '/analyze', '/batch-analyze', '/health'
     // Flask exposes /health at root and /api/ml/analyze etc at /api/ml/...
     const flaskPath = req.url === '/health' ? '/health' : `/api/ml${req.url}`;

@@ -82,8 +82,6 @@ CREATE INDEX idx_candidates_district ON candidates(district_id);
 CREATE TABLE voters (
     voter_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     roll_number VARCHAR(20) UNIQUE,
-    email VARCHAR(255) UNIQUE,
-    password VARCHAR(255),
     aadhar_number VARCHAR(12) UNIQUE NOT NULL,
     biometric_hash VARCHAR(64) UNIQUE NOT NULL, -- SHA-256 hash of biometric data
     district_id UUID NOT NULL REFERENCES districts(district_id) ON DELETE RESTRICT,
