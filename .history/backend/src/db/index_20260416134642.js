@@ -708,63 +708,6 @@ const ensureSchemaCompatibility = async () => {
         console.log('✅ Created missing table candidate_applications');
     }
 
-    try {
-        await qi.describeTable('polling_booths');
-    } catch {
-        await qi.createTable('polling_booths', {
-            booth_id: {
-                type: Sequelize.UUID,
-                primaryKey: true,
-                allowNull: false,
-                defaultValue: Sequelize.UUIDV4,
-            },
-            election_id: {
-                type: Sequelize.UUID,
-                allowNull: false,
-            },
-            district_id: {
-                type: Sequelize.UUID,
-                allowNull: true,
-            },
-            booth_code: {
-                type: Sequelize.STRING(80),
-                allowNull: false,
-            },
-            venue_name: {
-                type: Sequelize.STRING(255),
-                allowNull: false,
-            },
-            room_label: {
-                type: Sequelize.STRING(100),
-                allowNull: true,
-            },
-            capacity: {
-                type: Sequelize.INTEGER,
-                allowNull: true,
-            },
-            status: {
-                type: Sequelize.STRING(40),
-                allowNull: false,
-                defaultValue: 'PLANNED',
-            },
-            created_by: {
-                type: Sequelize.UUID,
-                allowNull: true,
-            },
-            created_at: {
-                type: Sequelize.DATE,
-                allowNull: true,
-                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-            },
-            updated_at: {
-                type: Sequelize.DATE,
-                allowNull: true,
-                defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-            },
-        });
-        console.log('✅ Created missing table polling_booths');
-    }
-
     await addIndexIfMissing('outbox_events', ['status', 'next_attempt_at'], {
         name: 'outbox_events_status_next_attempt_idx',
     });
@@ -779,15 +722,6 @@ const ensureSchemaCompatibility = async () => {
     });
     await addIndexIfMissing('candidate_applications', ['student_id', 'election_id'], {
         name: 'candidate_applications_student_election_idx',
-    });
-    await addIndexIfMissing('polling_booths', ['election_id'], {
-        name: 'idx_polling_booths_election_id',
-    });
-    await addIndexIfMissing('polling_booths', ['district_id'], {
-        name: 'idx_polling_booths_district_id',
-    });
-    await addIndexIfMissing('polling_booths', ['status'], {
-        name: 'idx_polling_booths_status',
     });
 
     if (dialect === 'postgres') {

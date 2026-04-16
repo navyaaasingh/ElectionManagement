@@ -503,19 +503,19 @@ export default function VoterUI() {
         }))
       } catch (error) {
         if (cancelled) return
-
-        if (state.ballotToken?.trim()) {
-          setState((current) => ({
-            ...current,
-            error: `Ballot token consume failed: ${error.message}`,
-            note: 'This token may be invalid/expired or already consumed. Ask a supervisor to issue a fresh token.',
-            step: 'confirm',
-          }))
-          return
-        }
-
         const queuedVote = {
           candidateId: state.selectedCandidate?.id,
+
+                if (state.ballotToken?.trim()) {
+                  setState((current) => ({
+                    ...current,
+                    error: `Ballot token consume failed: ${error.message}`,
+                    note: 'This token may be invalid/expired or already consumed. Ask a supervisor to issue a fresh token.',
+                    step: 'confirm',
+                  }))
+                  return
+                }
+
           voterId: state.voter?.voterId,
           electionId: state.election?.election_id || state.election?.id,
           district: state.voter?.districtId || 'General',

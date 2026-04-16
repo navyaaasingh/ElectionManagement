@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { getStoredVoter } from '../api/auth.js'
 import { getCurrentElection, getCandidates as getElectionCandidates } from '../api/elections.js'
 import { castVote as submitVote, getVoterStatus, raiseSOS } from '../api/votes.js'
-import { consumeBallotToken } from '../api/ballots.js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FadeInUp, StaggerContainer, StaggerItem, AnimatedButton } from './AnimationWrapper'
 const LOCALES = [
@@ -179,7 +178,6 @@ const INITIAL_STATE = {
   election: null,
   candidates: [],
   selectedCandidate: null,
-  ballotToken: '',
   receipt: null,
   error: null,
   note: null,
@@ -455,30 +453,6 @@ export default function VoterUI() {
       try {
         if (!state.selectedCandidate) throw new Error('No candidate selected.')
 
-        const token = state.ballotToken?.trim()
-        if (token) {
-          const consumeResponse = await consumeBallotToken({
-            token,
-            candidateId: state.selectedCandidate.id,
-            terminalId: 'TERM-WEB-001',
-          })
-
-          if (cancelled) return
-
-          const consumeData = consumeResponse.data || consumeResponse
-          const receipt = consumeData.receipt || {}
-          setState((current) => ({
-            ...current,
-            receipt: {
-              ...receipt,
-              receiptId: receipt.receiptId || consumeData.voteId || `TOKEN-${consumeData.tokenId || Date.now()}`,
-              blockchainTxId: consumeData.blockchainTxId || receipt.blockchainTxId,
-              tokenId: consumeData.tokenId || null,
-            },
-          }))
-          return
-        }
-
         const response = await submitVote({
           candidateId: state.selectedCandidate.id,
           voterId: state.voter?.voterId,
@@ -503,17 +477,6 @@ export default function VoterUI() {
         }))
       } catch (error) {
         if (cancelled) return
-
-        if (state.ballotToken?.trim()) {
-          setState((current) => ({
-            ...current,
-            error: `Ballot token consume failed: ${error.message}`,
-            note: 'This token may be invalid/expired or already consumed. Ask a supervisor to issue a fresh token.',
-            step: 'confirm',
-          }))
-          return
-        }
-
         const queuedVote = {
           candidateId: state.selectedCandidate?.id,
           voterId: state.voter?.voterId,
@@ -1016,23 +979,6 @@ export default function VoterUI() {
                 {state.selectedCandidate?.position}
               </p>
               <p style={{ marginTop: '8px', fontSize: '1.1rem', opacity: 0.7 }}>{state.selectedCandidate?.party}</p>
-
-              <div style={{ marginTop: '22px', textAlign: 'left', width: '100%' }}>
-                <label className="field-label" htmlFor="ballot-token" style={{ marginBottom: '8px', display: 'block' }}>
-                  Booth ballot token (optional)
-                </label>
-                <input
-                  id="ballot-token"
-                  className="field-input"
-                  value={state.ballotToken || ''}
-                  onChange={(e) => setState((current) => ({ ...current, ballotToken: e.target.value.trim() }))}
-                  placeholder="Paste token to use secure consume flow"
-                  style={{ fontFamily: 'monospace' }}
-                />
-                <p className="terminal-subtle" style={{ marginTop: '8px' }}>
-                  If provided, your vote is submitted through the booth token flow.
-                </p>
-              </div>
             </motion.div>
 
             <div className="terminal-actions spread" style={{ marginTop: '40px' }}>
@@ -1100,12 +1046,6 @@ export default function VoterUI() {
                     <span style={{ fontWeight: 600, opacity: 0.6 }}>Blockchain Block</span>
                     <strong style={{ color: 'var(--success)' }}>#{state.receipt.blockNumber || '82931'}</strong>
                   </div>
-                  {state.receipt.tokenId ? (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                      <span style={{ fontWeight: 600, opacity: 0.6 }}>Token ID</span>
-                      <strong style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{state.receipt.tokenId}</strong>
-                    </div>
-                  ) : null}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0' }}>
                     <span style={{ fontWeight: 600, opacity: 0.6 }}>Verification</span>
                     <strong style={{ color: state.receipt.queued ? '#f59e0b' : 'var(--brand)' }}>

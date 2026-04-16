@@ -591,7 +591,6 @@ export default function AdminPage() {
             ['elections', 'Elections'],
             ['candidates', 'Candidates'],
             ['voters', 'Voters'],
-            ['fieldOps', 'Field ops'],
             ['audit', 'Audit log'],
           ].map(([id, label]) => (
             <button

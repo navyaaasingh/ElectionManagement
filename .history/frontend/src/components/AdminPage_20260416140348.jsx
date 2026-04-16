@@ -111,6 +111,7 @@ export default function AdminPage() {
     if (!admin) return
 
     async function load() {
+            ['fieldOps', 'Field ops'],
       try {
         const electionResponse = await getElections({ limit: 12 })
         const electionList = electionResponse.elections || []
@@ -591,7 +592,6 @@ export default function AdminPage() {
             ['elections', 'Elections'],
             ['candidates', 'Candidates'],
             ['voters', 'Voters'],
-            ['fieldOps', 'Field ops'],
             ['audit', 'Audit log'],
           ].map(([id, label]) => (
             <button
